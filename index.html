@@ -353,37 +353,89 @@ const SEED=[
   {t:"Incluir en metas atWork las Encuestas online (tablet)",r:"Claudio/David",f:"2026-05-12",s:"Pendiente",c:"Retail",n:"Alinear a todos en la reunión a que se cargue la meta cumplida 2026"},
 ];
 
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyEyXHc5qkDV19NICk8tkfsKol8AkkkvQPq-uRAUS-zYrgiTnFWd-zYygRW3DYDEMVY/exec';
 const KEY='sas_v4';
-let items=[], filterCat='all', filterSt='all', driveFileId=null;
+let items=[], filterCat='all', filterSt='all', syncing=false;
 
-function load(){
-  const saved=localStorage.getItem(KEY);
-  if(saved){items=JSON.parse(saved);}
-  else{items=SEED.map((r,i)=>({id:1000+i,nombre:r.t,responsable:r.r,fecha:r.f,categoria:r.c,status:ns(r.s),notas:r.n,creado:new Date().toISOString()}));saveLocal();}
+// ── Sheets API ───────────────────────────────────────────────────────────────
+async function sheetsGet(){
+  const res=await fetch(SCRIPT_URL+'?action=getAll');
+  const data=await res.json();
+  return data.items||[];
 }
+async function sheetsSave(item){
+  await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'save',item})});
+}
+async function sheetsDelete(id){
+  await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'delete',id:String(id)})});
+}
+
+// ── Load: primero Sheet, fallback a local ────────────────────────────────────
+async function load(){
+  setSyncState('syncing','Cargando…');
+  try{
+    const sheetItems=await sheetsGet();
+    if(sheetItems.length>0){
+      items=sheetItems;
+      localStorage.setItem(KEY,JSON.stringify(items));
+      setSyncState('ok','Sheets');
+      setTimeout(()=>setSyncState('idle','Sheets'),2000);
+    } else {
+      // Sheet vacío — cargar seed y subirlo
+      const saved=localStorage.getItem(KEY);
+      if(saved){items=JSON.parse(saved);}
+      else{items=SEED.map((r,i)=>({id:1000+i,nombre:r.t,responsable:r.r,fecha:r.f,categoria:r.c,status:ns(r.s),notas:r.n,creado:new Date().toISOString()}));}
+      // Subir todos al sheet
+      for(const item of items){await sheetsSave(item);}
+      localStorage.setItem(KEY,JSON.stringify(items));
+      setSyncState('ok','Sincronizado');
+      setTimeout(()=>setSyncState('idle','Sheets'),2000);
+    }
+  }catch(e){
+    // Sin red: usar local
+    const saved=localStorage.getItem(KEY);
+    if(saved){items=JSON.parse(saved);}
+    else{items=SEED.map((r,i)=>({id:1000+i,nombre:r.t,responsable:r.r,fecha:r.f,categoria:r.c,status:ns(r.s),notas:r.n,creado:new Date().toISOString()}));}
+    setSyncState('err','Sin red');
+    setTimeout(()=>setSyncState('idle','Sheets'),3000);
+  }
+  updateStats();
+}
+
 function saveLocal(){localStorage.setItem(KEY,JSON.stringify(items));updateStats();}
+
 function updateStats(){
-  const n=items.length;
-  document.getElementById('statTotal').textContent=n+' temas';
+  document.getElementById('statTotal').textContent=items.length+' temas';
   document.getElementById('statProceso').textContent=items.filter(i=>i.status==='En Proceso').length+' en proceso';
   document.getElementById('statPend').textContent=items.filter(i=>i.status==='Pendiente').length+' pendientes';
   document.getElementById('statListo').textContent=items.filter(i=>i.status==='Listo').length+' listos';
 }
 
-async function syncDrive(){
+function setSyncState(state,label){
   const btn=document.getElementById('btnSync'),icon=document.getElementById('syncIcon'),lbl=document.getElementById('syncLabel');
-  btn.className='btn-sync';icon.textContent='🔄';lbl.textContent='Guardando…';
-  icon.style.animation='spin 1s linear infinite';
+  btn.className='btn-sync'+(state==='ok'?' ok':state==='err'?' err':'');
+  icon.style.animation=state==='syncing'?'spin 1s linear infinite':'';
+  icon.textContent=state==='ok'?'✅':state==='err'?'⚠️':'☁️';
+  lbl.textContent=label;
+}
+
+async function syncDrive(){
+  if(syncing)return;
+  syncing=true;
+  setSyncState('syncing','Sincronizando…');
   try{
-    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:"You manage Google Drive files. Save JSON data to a file named 'agenda_sas_data.json' in the user's Google Drive root. Respond ONLY with JSON: {\"success\":true,\"message\":\"...\"}  or {\"success\":false,\"message\":\"...\"}",messages:[{role:"user",content:"Save this JSON to Google Drive as 'agenda_sas_data.json', overwriting if it exists:\n"+JSON.stringify(items,null,2)}],mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}]})});
-    const data=await res.json();
-    const txt=data.content?.find(b=>b.type==='text')?.text||'';
-    let ok=false;try{ok=JSON.parse(txt.replace(/```json|```/g,'').trim()).success;}catch{ok=txt.toLowerCase().includes('success')||txt.toLowerCase().includes('created')||txt.toLowerCase().includes('updated');}
-    icon.style.animation='';
-    if(ok){btn.className='btn-sync ok';icon.textContent='✅';lbl.textContent='Guardado';showToast('✅ Guardado en Google Drive');}
-    else throw new Error();
-  }catch{icon.style.animation='';btn.className='btn-sync err';icon.textContent='⚠️';lbl.textContent='Error';showToast('⚠️ No se pudo guardar en Drive');}
-  setTimeout(()=>{btn.className='btn-sync';icon.textContent='☁️';lbl.textContent='Drive';},3000);
+    const sheetItems=await sheetsGet();
+    items=sheetItems.length>0?sheetItems:items;
+    saveLocal();
+    setSyncState('ok','Actualizado');
+    showToast('✅ Datos actualizados desde Sheets');
+    renderList();
+  }catch{
+    setSyncState('err','Error');
+    showToast('⚠️ Sin conexión con Sheets');
+  }
+  setTimeout(()=>setSyncState('idle','Sheets'),2500);
+  syncing=false;
 }
 
 function switchTab(tab){
@@ -399,21 +451,25 @@ function switchTab(tab){
   if(tab==='resumen')renderResumen();
 }
 
-function submitForm(){
+async function submitForm(){
   const nombre=document.getElementById('nombre').value.trim();
   const resp=document.getElementById('responsable').value.trim();
   const eid=document.getElementById('editId').value;
   if(!nombre){document.getElementById('nombre').focus();return;}
   if(!resp){document.getElementById('responsable').focus();return;}
+  let item;
   if(eid){
     const idx=items.findIndex(i=>i.id==eid);
-    if(idx>=0)items[idx]={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim()};
-    showToast('✏️ Tema actualizado');
+    if(idx>=0){item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim()};items[idx]=item;}
+    showToast('✏️ Guardando…');
   }else{
-    items.unshift({id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),creado:new Date().toISOString()});
-    showToast('✓ Tema agregado');
+    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),creado:new Date().toISOString()};
+    items.unshift(item);
+    showToast('☁️ Guardando…');
   }
   saveLocal();resetForm();
+  try{await sheetsSave(item);showToast('✅ '+(eid?'Tema actualizado':'Tema agregado'));}
+  catch{showToast('⚠️ Guardado solo local (sin red)');}
 }
 function resetForm(){
   ['nombre','responsable','notas'].forEach(id=>document.getElementById(id).value='');
@@ -427,7 +483,13 @@ function editItem(id){
   document.getElementById('formTitle').textContent='Editar tema';document.getElementById('btnSubmit').textContent='Guardar cambios';document.getElementById('btnCancel').style.display='block';
   switchTab('form');window.scrollTo({top:0,behavior:'smooth'});
 }
-function deleteItem(id){if(!confirm('¿Eliminar este tema?'))return;items=items.filter(i=>i.id!==id);saveLocal();renderList();showToast('🗑️ Eliminado');}
+async function deleteItem(id){
+  if(!confirm('¿Eliminar este tema?'))return;
+  items=items.filter(i=>i.id!==id);
+  saveLocal();renderList();showToast('🗑️ Eliminando…');
+  try{await sheetsDelete(id);showToast('🗑️ Eliminado');}
+  catch{showToast('⚠️ Eliminado local (sin red)');}
+}
 
 function setFilter(type,val,el){
   if(type==='cat'){filterCat=val;document.querySelectorAll('.filter-row .filter-chip').forEach(c=>c.classList.remove('active-filter'));}
@@ -462,7 +524,7 @@ function renderCats(){
       </select>
     </div>`).join('');
 }
-function updateCat(id,cat){const i=items.find(i=>i.id===id);if(i){i.categoria=cat;saveLocal();}showToast('🏷️ Categoría actualizada');}
+async function updateCat(id,cat){const i=items.find(i=>i.id===id);if(i){i.categoria=cat;saveLocal();showToast('🏷️ Actualizando…');try{await sheetsSave(i);showToast('🏷️ Categoría actualizada');}catch{showToast('⚠️ Actualizado local (sin red)');}}}
 
 function renderResumen(){
   const total=items.length,listo=items.filter(i=>i.status==='Listo').length,proceso=items.filter(i=>i.status==='En Proceso').length,pend=items.filter(i=>i.status==='Pendiente').length;
