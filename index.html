@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Agenda Planning & Sales SAS</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e6be6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Agenda SAS">
+<link rel="apple-touch-icon" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f0f4fa;--surface:#fff;--border:#d0d8ec;--accent:#2e6be6;--accent2:#6b4fdc;--accent3:#0faa7e;--text:#1a2140;--text-muted:#6270a0;--retail:#2e6be6;--inventario:#e07a20;--otros:#7c5cdc;--no-iniciado:#8a96b8;--en-proceso:#c49a00;--listo:#0faa7e;--pendiente:#d05a9a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;min-height:100vh;padding-bottom:110px}
+.header{background:linear-gradient(135deg,#fff 0%,#eaf0fb 100%);border-bottom:1px solid var(--border);padding:16px 20px 12px;position:sticky;top:0;z-index:100}
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}
+.header-left{display:flex;align-items:center;gap:10px}
+.logo-dot{width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));flex-shrink:0;box-shadow:0 0 8px rgba(46,107,230,.5);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 8px rgba(46,107,230,.5)}50%{box-shadow:0 0 16px rgba(46,107,230,.85)}}
+.header h1{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.12em}
+.header h2{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;background:linear-gradient(90deg,var(--text) 0%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-stats{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.stat-pill{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600}
+.stat-pill.total{background:rgba(46,107,230,.1);border:1px solid rgba(46,107,230,.2);color:var(--accent)}
+.stat-pill.proceso{background:rgba(196,154,0,.1);border:1px solid rgba(196,154,0,.2);color:var(--en-proceso)}
+.stat-pill.pend{background:rgba(208,90,154,.1);border:1px solid rgba(208,90,154,.2);color:var(--pendiente)}
+.stat-pill.listo{background:rgba(15,170,126,.1);border:1px solid rgba(15,170,126,.2);color:var(--listo)}
+.btn-sync{display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-sync:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sync.ok{border-color:var(--listo);color:var(--listo)}
+.btn-sync.err{border-color:#e05c5c;color:#e05c5c}
+.sync-icon{font-size:14px;display:inline-block}
+.btn-sync.syncing .sync-icon{animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.tabs{background:var(--bg);border-bottom:1px solid var(--border);display:flex;padding:8px 12px 0;gap:2px;position:sticky;top:108px;z-index:99;overflow-x:auto}
+.tab{padding:7px 12px;border-radius:8px 8px 0 0;font-size:12px;font-weight:600;color:var(--text-muted);cursor:pointer;border:none;background:transparent;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.tab.active{background:var(--surface);color:var(--text);border:1px solid var(--border);border-bottom:1px solid var(--surface);margin-bottom:-1px}
+.main{padding:16px}
+.section{display:none}
+.section.active{display:block;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px}
+.form-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:18px;color:var(--text)}
+.field{margin-bottom:14px}
+label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:6px}
+input[type="text"],select,textarea,input[type="date"]{width:100%;background:#f7f9fd;border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(46,107,230,.15)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236270a0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer}
+select option{background:#fff;color:#1a2140}
+textarea{resize:none;height:80px;line-height:1.5}
+input[type="date"]{color-scheme:light}
+.btn-submit{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;color:#fff;font-family:'Syne',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;transition:opacity .2s,transform .1s}
+.btn-submit:active{opacity:.85;transform:scale(.98)}
+.btn-cancel{width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;transition:all .2s}
+.btn-cancel:hover{border-color:var(--accent);color:var(--accent)}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--accent3);color:#fff;padding:11px 22px;border-radius:40px;font-weight:600;font-size:14px;z-index:999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.search-box{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:12px;transition:border-color .2s}
+.search-box:focus{border-color:var(--accent)}
+.section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:6px}
+.filter-row,.filter-row2{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.filter-row2{margin-bottom:16px}
+.filter-chip{padding:4px 11px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all .2s}
+.filter-chip.active-filter{background:rgba(46,107,230,.15);border-color:var(--accent);color:var(--accent)}
+.item-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 14px 14px 18px;margin-bottom:10px;animation:fadeUp .25s ease;position:relative;overflow:hidden}
+.item-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px 0 0 4px}
+.item-card[data-cat="Retail"]::before{background:var(--retail)}
+.item-card[data-cat="Inventario"]::before{background:var(--inventario)}
+.item-card[data-cat="Otros"]::before{background:var(--otros)}
+.item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+.item-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;line-height:1.3;flex:1}
+.badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.badge.no-iniciado{background:rgba(138,150,184,.15);color:var(--no-iniciado)}
+.badge.en-proceso{background:rgba(196,154,0,.15);color:var(--en-proceso)}
+.badge.listo{background:rgba(15,170,126,.15);color:var(--listo)}
+.badge.pendiente{background:rgba(208,90,154,.15);color:var(--pendiente)}
+.item-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.meta-pill{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px}
+.cat-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.cat-dot.Retail{background:var(--retail)}
+.cat-dot.Inventario{background:var(--inventario)}
+.cat-dot.Otros{background:var(--otros)}
+.item-notes{font-size:12px;color:var(--text-muted);margin-top:7px;line-height:1.5;font-style:italic}
+.item-actions{display:flex;gap:6px;margin-top:10px}
+.btn-edit{flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-edit:hover{border-color:var(--accent);color:var(--accent)}
+.btn-del{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all .2s}
+.btn-del:hover{border-color:#e05c5c;color:#e05c5c}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-state .icon{font-size:36px;margin-bottom:10px;opacity:.5}
+/* CATS */
+.cat-assign-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.cat-assign-row:last-child{border-bottom:none}
+.cat-assign-name{font-size:13px;font-weight:600;flex:1;line-height:1.3}
+.cat-assign-row select{width:130px;font-size:13px;padding:6px 10px;background:#f7f9fd;border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;-webkit-appearance:none;cursor:pointer}
+/* RESUMEN */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;text-align:center}
+.kpi-num{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;line-height:1}
+.kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-top:3px}
+.kpi-card.k-total .kpi-num{color:var(--accent)}
+.kpi-card.k-listo .kpi-num{color:var(--listo)}
+.kpi-card.k-proceso .kpi-num{color:var(--en-proceso)}
+.kpi-card.k-pend .kpi-num{color:var(--pendiente)}
+.kpi-card.k-noinit .kpi-num{color:var(--no-iniciado)}
+.resumen-block{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+.resumen-block-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text)}
+.prog-row{margin-bottom:14px}
+.prog-row-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:13px}
+.prog-label{display:flex;align-items:center;gap:6px;font-weight:600}
+.prog-nums{font-size:12px;color:var(--text-muted)}
+.prog-wrap{height:8px;background:#eef1f8;border-radius:4px;overflow:hidden}
+.prog-bar{height:100%;border-radius:4px;transition:width .6s ease;background:var(--listo)}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:480px}
+thead tr{background:#f4f7fd}
+th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #eef1f8;vertical-align:top;line-height:1.4}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f9fbff}
+.td-tema{font-weight:600;color:var(--text);max-width:180px}
+.td-resp{color:var(--text-muted);max-width:110px;font-size:11px}
+.td-notas{color:var(--text-muted);font-style:italic;max-width:160px;font-size:11px}
+.td-fecha{white-space:nowrap;color:var(--text-muted);font-size:11px}
+.tbl-cat{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.tbl-cat.Retail{background:rgba(46,107,230,.1);color:var(--retail)}
+.tbl-cat.Inventario{background:rgba(224,122,32,.1);color:var(--inventario)}
+.tbl-cat.Otros{background:rgba(124,92,220,.1);color:var(--otros)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(240,244,250,.97);border-top:1px solid var(--border);display:flex;padding:8px 0 18px;backdrop-filter:blur(12px);z-index:100}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:transparent;color:var(--text-muted);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;transition:color .2s;padding:4px 0}
+.nav-btn .icon{font-size:20px}
+.nav-btn.active{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-left">
+      <div class="logo-dot"></div>
+      <h1>Planning & Sales SAS</h1>
+    </div>
+    <button class="btn-sync" id="btnSync" onclick="syncDrive()">
+      <span class="sync-icon" id="syncIcon">☁️</span>
+      <span id="syncLabel">Drive</span>
+    </button>
+  </div>
+  <h2>Agenda de la Reunión</h2>
+  <div class="header-stats">
+    <span class="stat-pill total"  id="statTotal">—</span>
+    <span class="stat-pill proceso" id="statProceso">—</span>
+    <span class="stat-pill pend"   id="statPend">—</span>
+    <span class="stat-pill listo"  id="statListo">—</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('form')">+ Nuevo</button>
+  <button class="tab" onclick="switchTab('list')">Agenda</button>
+  <button class="tab" onclick="switchTab('cats')">Categorías</button>
+  <button class="tab" onclick="switchTab('resumen')">Resumen</button>
+</div>
+
+<div class="main">
+
+  <!-- NUEVO / EDITAR -->
+  <div class="section active" id="secForm">
+    <div class="form-card">
+      <div class="form-title" id="formTitle">Cargar nuevo tema</div>
+      <div class="field"><label>Nombre del tema *</label><input type="text" id="nombre" placeholder="Ej: Revisión de stock Q2"/></div>
+      <div class="field"><label>Responsable / Presentador *</label><input type="text" id="responsable" placeholder="Nombre completo"/></div>
+      <div class="field"><label>Fecha de reunión</label><input type="date" id="fecha"/></div>
+      <div class="field"><label>Categoría</label>
+        <select id="categoria">
+          <option value="">— Seleccioná —</option>
+          <option value="Retail">Retail</option>
+          <option value="Inventario">Inventario</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select id="status">
+          
+          <option value="En Proceso">En Proceso</option>
+          <option value="Pendiente">Pendiente</option>
+          <option value="Listo">Listo</option>
+        </select>
+      </div>
+      <div class="field"><label>Notas adicionales</label><textarea id="notas" placeholder="Contexto, aclaraciones, links…"></textarea></div>
+      <input type="hidden" id="editId" value=""/>
+      <button class="btn-submit" id="btnSubmit" onclick="submitForm()">Agregar a la Agenda</button>
+      <button class="btn-cancel" id="btnCancel" onclick="cancelEdit()" style="display:none">Cancelar edición</button>
+    </div>
+  </div>
+
+  <!-- AGENDA -->
+  <div class="section" id="secList">
+    <input class="search-box" type="text" id="searchBox" placeholder="🔍  Buscar tema o responsable…" oninput="renderList()"/>
+    <div class="section-label">Categoría</div>
+    <div class="filter-row">
+      <span class="filter-chip active-filter" onclick="setFilter('cat','all',this)">Todos</span>
+      <span class="filter-chip" onclick="setFilter('cat','Retail',this)">🔵 Retail</span>
+      <span class="filter-chip" onclick="setFilter('cat','Inventario',this)">🟠 Inventario</span>
+      <span class="filter-chip" onclick="setFilter('cat','Otros',this)">🟣 Otros</span>
+    </div>
+    <div class="section-label">Status</div>
+    <div class="filter-row2">
+      <span class="filter-chip active-filter" onclick="setFilter('st','all',this)">Todos</span>
+      <span class="filter-chip" onclick="setFilter('st','En Proceso',this)">🟡 En Proceso</span>
+      <span class="filter-chip" onclick="setFilter('st','Pendiente',this)">🔴 Pendiente</span>
+      
+      <span class="filter-chip" onclick="setFilter('st','Listo',this)">🟢 Listo</span>
+    </div>
+    <div id="itemList"></div>
+  </div>
+
+  <!-- CATEGORÍAS -->
+  <div class="section" id="secCats">
+    <div style="background:rgba(46,107,230,.08);border:1px solid rgba(46,107,230,.2);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--accent);line-height:1.5">
+      💡 Asigná la categoría correcta a cada tema. Los cambios se guardan automáticamente.
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px 14px">
+      <div id="catsList"></div>
+    </div>
+  </div>
+
+  <!-- RESUMEN EJECUTIVO -->
+  <div class="section" id="secResumen">
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="resumen-block">
+      <div class="resumen-block-title">📊 Avance por Categoría</div>
+      <div id="resCats"></div>
+    </div>
+    <div class="resumen-block">
+      <div class="resumen-block-title">🔴 Pendientes y En Proceso</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Tema</th><th>Responsable</th><th>Fecha</th><th>Status</th><th>Cat.</th></tr></thead>
+          <tbody id="tbActivos"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="resumen-block">
+      <div class="resumen-block-title">📋 Tabla Completa</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Tema</th><th>Responsable</th><th>Status</th><th>Cat.</th><th>Comentarios</th></tr></thead>
+          <tbody id="tbFull"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">✓ Guardado</div>
+
+<div class="bottom-nav">
+  <button class="nav-btn active" id="navForm" onclick="switchTab('form')"><span class="icon">✏️</span>Nuevo</button>
+  <button class="nav-btn" id="navList" onclick="switchTab('list')"><span class="icon">📋</span>Agenda</button>
+  <button class="nav-btn" id="navCats" onclick="switchTab('cats')"><span class="icon">🏷️</span>Cats.</button>
+  <button class="nav-btn" id="navResumen" onclick="switchTab('resumen')"><span class="icon">📊</span>Resumen</button>
+</div>
+
+<script>
+function ns(s){const v=s.trim().toLowerCase();if(v==='listo')return'Listo';if(v==='en proceso')return'En Proceso';if(v==='pendiente')return'Pendiente';return'Pendiente';}
+
+const SEED=[
+  {t:"Totems en Tiendas",r:"Claudio Salerno",f:"2025-06-05",s:"En Proceso",c:"Retail",n:"Pendiente de avance segun indique OK CW"},
+  {t:"Permisos Para Power BI",r:"Nicolás Calzona",f:"2025-06-12",s:"Listo",c:"Otros",n:"Hno Nico habló con Jorge Guillén"},
+  {t:"Correo estándar para informar sobre Ajustes",r:"Javi, Inés, Trellu",f:"2026-04-23",s:"En Proceso",c:"Otros",n:"Javi está encargado de la presentación"},
+  {t:"Compra mobiliario para las tiendas",r:"Jaly",f:"2025-06-12",s:"Listo",c:"Retail",n:"Maniquíes, silla, muebles para la optimización de las oficinas pequeñas"},
+  {t:"Reportes de encuestas",r:"Claudio Salerno",f:"2025-06-12",s:"Listo",c:"Retail",n:"Inconsistencia en cantidad reportada: Córdoba, Antofagasta. Mendoza, Salta sin datos."},
+  {t:"Temas que trataremos en el Seminario",r:"Todos",f:"2025-06-12",s:"Listo",c:"Otros",n:"Se solicitó a los supervisores escribir un tema de interés para el Seminario"},
+  {t:"Obsolescencia de POS Tiendas",r:"",f:"2025-06-18",s:"Listo",c:"Retail",n:"Se realizará el cambio de las máquinas en todas las tiendas, excepto las nuevitas"},
+  {t:"Respuesta reembolsos educativos",r:"Claudio Salerno",f:"2025-06-18",s:"Listo",c:"Otros",n:"Supervisores que solicitaron reembolso deben enviar correo a Claudio para levantar el tema con RRHH"},
+  {t:"Informe de Ventas Semanales/Mensuales",r:"Nicolás Calzona",f:"2025-06-18",s:"Listo",c:"Retail",n:"Nico está esperando credenciales como administrador para dar permisos al Power BI"},
+  {t:"Problemas con Bopis",r:"Claudio Salerno",f:"2025-06-18",s:"Listo",c:"Retail",n:"Claudio solicitará pausa en Bopis hasta dar solución a problemas con devoluciones"},
+  {t:"Agenda sobre el seminario",r:"Claudio Salerno",f:"2025-06-26",s:"Listo",c:"Otros",n:"Información sobre temas que se tratarán en el seminario"},
+  {t:"Autoevaluación: Los 4 roles del liderazgo",r:"Claudio Salerno",f:"2025-06-26",s:"Listo",c:"Otros",n:"Claudio enviará la evaluación que cada uno debe llevar lista"},
+  {t:"Mantener mínimos y máximos reales",r:"Todos los supervisores",f:"2025-06-26",s:"Listo",c:"Inventario",n:"Informar a Nico sobre algún cambio necesario"},
+  {t:"Horas en At Work",r:"Santiago Varela",f:"2025-07-10",s:"Listo",c:"Otros",n:"Cómo cargar, validar y aprobar las horas del equipo"},
+  {t:"Garments embarazo/lactancia",r:"Nicolás Calzona",f:"2025-07-10",s:"Pendiente",c:"Retail",n:""},
+  {t:"Publicidad de la página - QR",r:"",f:"",s:"Pendiente",c:"Retail",n:""},
+  {t:"Planilla de horas de trabajo del Equipo supervisores",r:"David Bernal",f:"2026-04-23",s:"Pendiente",c:"Otros",n:"Realizar planilla con los datos de horas de trabajo de todos los supervisores para enviárselo a Santiago Varela"},
+  {t:"Asignación de gastos a cuentas operativas",r:"Claudio Salerno",f:"2025-07-24",s:"Pendiente",c:"Otros",n:""},
+  {t:"Faltante de caja / Faltante de mercadería",r:"Claudio Salerno",f:"2025-08-14",s:"Listo",c:"Retail",n:""},
+  {t:"Estilos y Telas nuevos Garments: Stretch y Light Nylon",r:"Claudio Salerno",f:"2025-08-21",s:"Listo",c:"Retail",n:""},
+  {t:"Control de Fondos de cambio 2025",r:"Claudio Salerno",f:"2025-08-27",s:"Listo",c:"Otros",n:"Claudio enviará el formato a todos los supervisores para reenvío conformado"},
+  {t:"No mantener TO abiertas (Shipped y Created)",r:"Nicolás Calzona",f:"2025-09-03",s:"Listo",c:"Inventario",n:"TO shipped: se recepcionan y ajustan (semanal). TO created: no superar los 2 meses"},
+  {t:"Implementación tarjetas Bins Garments",r:"Claudio Salerno",f:"2025-09-09",s:"Listo",c:"Inventario",n:"Claudio levantará el tema"},
+  {t:"Novedades cambios de equipos POS en las tiendas",r:"Javier/Claudio",f:"2025-09-11",s:"Listo",c:"Retail",n:"Se reemplazarán 1ro los equipos de 5 años. Si hay un equipo que falla hay que levantar un ticket"},
+  {t:"Cartelería para garments nuevos",r:"Javier",f:"2025-09-11",s:"Listo",c:"Retail",n:""},
+  {t:"Bin tags",r:"Claudio Salerno",f:"2026-04-23",s:"En Proceso",c:"Inventario",n:"Acordar bien dónde y por qué salirnos de la norma; informar por escrito a Claudio"},
+  {t:"Name badges",r:"Claudio Salerno/Nicolas Calzona",f:"2025-09-25",s:"Listo",c:"Retail",n:"Se hizo el pedido inicial para cada país"},
+  {t:"BOPIS todos los países",r:"Claudio Salerno",f:"2025-09-25",s:"Listo",c:"Retail",n:"Se comenzaron las reuniones con Paul Ericson. Falta reunirse con Chile"},
+  {t:"Mercado Pago Argentina",r:"Claudio Salerno",f:"2025-09-25",s:"En Proceso",c:"Retail",n:"Se inició el trabajo con SLC, está avanzando. Abril 2026"},
+  {t:"Cartelería en general",r:"Claudio Salerno",f:"2025-09-25",s:"Listo",c:"Retail",n:"Todos pasaron sus necesidades"},
+  {t:"Conteos cíclicos",r:"Nicolás Calzona",f:"2025-09-25",s:"Listo",c:"Inventario",n:""},
+  {t:"Cierre de caja",r:"Claudio Salerno",f:"2025-09-25",s:"Listo",c:"Retail",n:"2 personas SI O SI para cerrar caja"},
+  {t:"Reintegro Educativo",r:"Claudio Salerno",f:"2025-10-02",s:"Listo",c:"Otros",n:"El beneficiario debe pagar y luego pedir reintegro"},
+  {t:"Encuestas satisfacción",r:"Claudio Salerno",f:"2025-10-02",s:"Listo",c:"Retail",n:"¿Se están cargando todas a nivel tienda? Claudio averigua"},
+  {t:"Conteos cíclicos - procedimiento",r:"Nicolás Calzona",f:"2025-10-02",s:"Listo",c:"Inventario",n:"Se deben hacer a la mañana, caja cerrada, y cargar ANTES de abrir"},
+  {t:"Tabla de talles de los nuevos garments",r:"Claudio Salerno",f:"2025-11-11",s:"Listo",c:"Retail",n:"Solicitará a Elvio"},
+  {t:"Información sobre Garments nuevos en América Latina",r:"Claudio Salerno",f:"2025-11-13",s:"Listo",c:"Retail",n:"Garments higiénicos: lanzamiento jun 2026"},
+  {t:"Ver stocks de la bodega",r:"Nicolas Calzona",f:"2025-11-20",s:"Listo",c:"Inventario",n:"No se están cumpliendo las órdenes pedidas. Copiar a Dante en los correos"},
+  {t:"Día de reposición",r:"Nicolás Calzona",f:"2025-11-20",s:"Listo",c:"Inventario",n:""},
+  {t:"Día de reconocimientos",r:"Claudio Salerno",f:"2025-11-20",s:"Listo",c:"Otros",n:"Cada supervisor debe enviar la lista de reconocimientos hasta el 26/11"},
+  {t:"Plano tienda Santiago Oeste",r:"Claudio Salerno",f:"2025-11-20",s:"Listo",c:"Retail",n:"Sugerencia de modificación lugar de cajas y salida de emergencia"},
+  {t:"Proceso alta nuevos usuarios D365",r:"Claudio Salerno",f:"2025-11-20",s:"Listo",c:"Otros",n:"Directrices para solicitar alta de nuevos ingresos full time y tercerizados"},
+  {t:"Cierre evaluación AtWork",r:"Claudio Salerno",f:"2025-11-20",s:"Listo",c:"Otros",n:"Cada supervisor debe realizar el cierre de sus propias metas y el de su personal"},
+  {t:"Facturas impresas tiendas ARG",r:"Claudio Salerno/Finanzas",f:"2025-11-20",s:"En Proceso",c:"Retail",n:"Se enviarán talonarios a las tiendas para facturación de cada venta"},
+  {t:"Nueva bodega Chile",r:"Claudio Salerno",f:"2025-11-20",s:"Listo",c:"Inventario",n:""},
+  {t:"Proceso Estándar TO Receiving (Picking List)",r:"Claudio Salerno/Nicolas Calzona",f:"2025-12-16",s:"Listo",c:"Inventario",n:"El remito o guía de despacho es la palabra clave"},
+  {t:"Demanda insatisfecha",r:"Claudio Salerno/Supervisores",f:"2026-01-22",s:"Listo",c:"Retail",n:"Cargar en Excel (Sharepoint) los detalles por país"},
+  {t:"Proceso de devoluciones",r:"Claudio Salerno/Supervisores",f:"2026-01-22",s:"En Proceso",c:"Retail",n:"Se va a documentar el proceso para cada país"},
+  {t:"Lector código de barras para tablet",r:"Claudio Salerno",f:"2026-01-22",s:"Listo",c:"Retail",n:"Se harán pruebas en el hub y luego se proveerán lectores para todas las tiendas"},
+  {t:"Revisión inventarios, mins max",r:"Claudio Salerno/Nicolas Calzona",f:"2026-01-22",s:"En Proceso",c:"Inventario",n:"Se trabajará durante 2026 para hacer sintonía fina con los stocks por cada tienda"},
+  {t:"Ajustes: avisar a bodegas",r:"Claudio Salerno",f:"2026-01-22",s:"Listo",c:"Inventario",n:"Informar a Distribución cuando hay ajustes en más y en menos"},
+  {t:"Redondeo de precios",r:"Claudio Salerno",f:"2026-01-22",s:"Listo",c:"Retail",n:"Cada país revisó y arregló. Se envió a Jorge Guillén"},
+  {t:"Rendiciones de tarjetas",r:"Claudio Salerno",f:"2026-01-22",s:"Listo",c:"Otros",n:"Una por mes, descripciones cortas de los gastos"},
+  {t:"Nuevo BRD",r:"Claudio Salerno",f:"2026-01-22",s:"Listo",c:"Otros",n:"Claudio lo pidió a Finanzas y ya lo envió"},
+  {t:"Reportes encuestas",r:"Claudio Salerno",f:"2026-02-26",s:"Listo",c:"Retail",n:"Claudio lo manda a los supervisores"},
+  {t:"Asignación Trellu y Javier",r:"Claudio Salerno",f:"2026-04-16",s:"Listo",c:"Otros",n:"Trellu en ARG y URY, Javier en CHI y PRY"},
+  {t:"Flipchart D365",r:"Claudio Salerno",f:"2026-04-16",s:"Listo",c:"Otros",n:"¿Quién necesita más flipcharts? NADIE"},
+  {t:"Gastos tarjeta corporativa",r:"Claudio Salerno",f:"2026-04-16",s:"Listo",c:"Otros",n:"Nueva explicación sobre usar la tarjeta corporativa"},
+  {t:"Stocks de seguridad - CRITICAL INVENTORY",r:"Nicolas Calzona/Trelluli/Javier",f:"2026-04-16",s:"En Proceso",c:"Inventario",n:"Cómo mirar los stocks de Curriculum, garments y ropa blanca"},
+  {t:"Presentación vestido Evelyn",r:"Nicolas Calzona",f:"2026-04-16",s:"Listo",c:"Retail",n:"Se presenta el vestido abrochado adelante"},
+  {t:"Presentación saco tejido Amy",r:"Nicolas Calzona",f:"2026-04-16",s:"Listo",c:"Retail",n:"Deadline para presentar a SLC. Se verá el subsidio para cada país"},
+  {t:"Tablets nuevas",r:"Claudio Salerno",f:"2026-04-16",s:"Listo",c:"Retail",n:"Se indica cuándo actualizar las tablets cada semana"},
+  {t:"Scanner para tablets",r:"Claudio Salerno",f:"2026-04-16",s:"Listo",c:"Retail",n:"Claudio pasará el link de ML a todos"},
+  {t:"Código vestimenta Empleados",r:"Claudio Salerno",f:"2026-04-21",s:"Listo",c:"Otros",n:"Policies"},
+  {t:"Informes CFis (Sin Presupuesto)",r:"Claudio Salerno",f:"2026-04-21",s:"Listo",c:"Otros",n:"Excepcionalmente sin monto asignado para pedidos de ropa (TO). Presupuestos excedidos +200%"},
+  {t:"Checklist al comienzo de la jornada",r:"Claudio Salerno",f:"2026-04-22",s:"Listo",c:"Retail",n:"Revisar: Statement, Item Coverage Report, On Hand Inventory (Negativos), BOPIS"},
+  {t:"Reportes de Encuestas en el Sharepoint",r:"Claudio Salerno",f:"2026-04-23",s:"En Proceso",c:"Retail",n:"Claudio empezará a colgar los conteos cíclicos y journals en el Sharepoint"},
+  {t:"Horarios tiendas/Templos",r:"Supervisores",f:"2026-04-23",s:"Listo",c:"Retail",n:"Los supervisores deben modificar sus horarios en la carpeta correspondiente en Sharepoint"},
+  {t:"Llamamientos del personal",r:"Supervisores",f:"2026-04-23",s:"Listo",c:"Otros",n:"Los supervisores deben cargar los llamamientos en la carpeta correspondiente en Sharepoint"},
+  {t:"Depósitos al banco - Normativa",r:"Supervisores/Claudio",f:"2026-04-30",s:"Listo",c:"Otros",n:"Aclarado lo de 2 personas. Chile dará de baja el servicio de depósito por terceros"},
+  {t:"Órdenes manuales prohibidas",r:"Supervisores/Claudio",f:"2026-04-30",s:"Listo",c:"Inventario",n:""},
+  {t:"Liahonas para stock",r:"Nicolas Calzona",f:"2026-04-30",s:"Listo",c:"Inventario",n:"No se van a imprimir más revistas para stock de tiendas"},
+  {t:"Documento Unificado sobre conteos cíclicos",r:"Trelluli/Javier",f:"2026-05-07",s:"Listo",c:"Inventario",n:"Standarización de archivos que se envíen respecto a conteos cíclicos"},
+  {t:"Asistente de distribución",r:"Nicolás Calzona",f:"2026-05-07",s:"Listo",c:"Inventario",n:"Yamila Caminos se une al equipo como nueva asistente de Nico"},
+  {t:"Informe Journals de conteo por tienda",r:"Trellu/Javi",f:"2026-05-07",s:"Pendiente",c:"Inventario",n:"Informe de cumplimiento semestral de conteo cíclico por SKU (journals asociados)"},
+  {t:"Incluir en metas atWork las Encuestas online (tablet)",r:"Claudio/David",f:"2026-05-12",s:"Pendiente",c:"Retail",n:"Alinear a todos en la reunión a que se cargue la meta cumplida 2026"},
+];
+
+const KEY='sas_v4';
+let items=[], filterCat='all', filterSt='all', driveFileId=null;
+
+function load(){
+  const saved=localStorage.getItem(KEY);
+  if(saved){items=JSON.parse(saved);}
+  else{items=SEED.map((r,i)=>({id:1000+i,nombre:r.t,responsable:r.r,fecha:r.f,categoria:r.c,status:ns(r.s),notas:r.n,creado:new Date().toISOString()}));saveLocal();}
+}
+function saveLocal(){localStorage.setItem(KEY,JSON.stringify(items));updateStats();}
+function updateStats(){
+  const n=items.length;
+  document.getElementById('statTotal').textContent=n+' temas';
+  document.getElementById('statProceso').textContent=items.filter(i=>i.status==='En Proceso').length+' en proceso';
+  document.getElementById('statPend').textContent=items.filter(i=>i.status==='Pendiente').length+' pendientes';
+  document.getElementById('statListo').textContent=items.filter(i=>i.status==='Listo').length+' listos';
+}
+
+async function syncDrive(){
+  const btn=document.getElementById('btnSync'),icon=document.getElementById('syncIcon'),lbl=document.getElementById('syncLabel');
+  btn.className='btn-sync';icon.textContent='🔄';lbl.textContent='Guardando…';
+  icon.style.animation='spin 1s linear infinite';
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:"You manage Google Drive files. Save JSON data to a file named 'agenda_sas_data.json' in the user's Google Drive root. Respond ONLY with JSON: {\"success\":true,\"message\":\"...\"}  or {\"success\":false,\"message\":\"...\"}",messages:[{role:"user",content:"Save this JSON to Google Drive as 'agenda_sas_data.json', overwriting if it exists:\n"+JSON.stringify(items,null,2)}],mcp_servers:[{type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"gdrive"}]})});
+    const data=await res.json();
+    const txt=data.content?.find(b=>b.type==='text')?.text||'';
+    let ok=false;try{ok=JSON.parse(txt.replace(/```json|```/g,'').trim()).success;}catch{ok=txt.toLowerCase().includes('success')||txt.toLowerCase().includes('created')||txt.toLowerCase().includes('updated');}
+    icon.style.animation='';
+    if(ok){btn.className='btn-sync ok';icon.textContent='✅';lbl.textContent='Guardado';showToast('✅ Guardado en Google Drive');}
+    else throw new Error();
+  }catch{icon.style.animation='';btn.className='btn-sync err';icon.textContent='⚠️';lbl.textContent='Error';showToast('⚠️ No se pudo guardar en Drive');}
+  setTimeout(()=>{btn.className='btn-sync';icon.textContent='☁️';lbl.textContent='Drive';},3000);
+}
+
+function switchTab(tab){
+  const map={form:'secForm',list:'secList',cats:'secCats',resumen:'secResumen'};
+  const navMap={form:'navForm',list:'navList',cats:'navCats',resumen:'navResumen'};
+  Object.keys(map).forEach(k=>{
+    document.getElementById(map[k]).classList.toggle('active',k===tab);
+    const nb=document.getElementById(navMap[k]);if(nb)nb.classList.toggle('active',k===tab);
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['form','list','cats','resumen'][i]===tab));
+  if(tab==='list')renderList();
+  if(tab==='cats')renderCats();
+  if(tab==='resumen')renderResumen();
+}
+
+function submitForm(){
+  const nombre=document.getElementById('nombre').value.trim();
+  const resp=document.getElementById('responsable').value.trim();
+  const eid=document.getElementById('editId').value;
+  if(!nombre){document.getElementById('nombre').focus();return;}
+  if(!resp){document.getElementById('responsable').focus();return;}
+  if(eid){
+    const idx=items.findIndex(i=>i.id==eid);
+    if(idx>=0)items[idx]={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim()};
+    showToast('✏️ Tema actualizado');
+  }else{
+    items.unshift({id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),creado:new Date().toISOString()});
+    showToast('✓ Tema agregado');
+  }
+  saveLocal();resetForm();
+}
+function resetForm(){
+  ['nombre','responsable','notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fecha').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
+  document.getElementById('formTitle').textContent='Cargar nuevo tema';document.getElementById('btnSubmit').textContent='Agregar a la Agenda';document.getElementById('btnCancel').style.display='none';
+}
+function cancelEdit(){resetForm();}
+function editItem(id){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  document.getElementById('nombre').value=item.nombre;document.getElementById('responsable').value=item.responsable||'';document.getElementById('fecha').value=item.fecha||'';document.getElementById('categoria').value=item.categoria||'';document.getElementById('status').value=item.status||'Pendiente';document.getElementById('notas').value=item.notas||'';document.getElementById('editId').value=id;
+  document.getElementById('formTitle').textContent='Editar tema';document.getElementById('btnSubmit').textContent='Guardar cambios';document.getElementById('btnCancel').style.display='block';
+  switchTab('form');window.scrollTo({top:0,behavior:'smooth'});
+}
+function deleteItem(id){if(!confirm('¿Eliminar este tema?'))return;items=items.filter(i=>i.id!==id);saveLocal();renderList();showToast('🗑️ Eliminado');}
+
+function setFilter(type,val,el){
+  if(type==='cat'){filterCat=val;document.querySelectorAll('.filter-row .filter-chip').forEach(c=>c.classList.remove('active-filter'));}
+  else{filterSt=val;document.querySelectorAll('.filter-row2 .filter-chip').forEach(c=>c.classList.remove('active-filter'));}
+  el.classList.add('active-filter');renderList();
+}
+
+function sc(s){if(s==='Listo')return'listo';if(s==='En Proceso')return'en-proceso';if(s==='Pendiente')return'pendiente';return'no-iniciado';}
+function fd(d){if(!d)return'';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
+
+function renderList(){
+  const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
+  const f=items.filter(i=>(filterCat==='all'||i.categoria===filterCat)&&(filterSt==='all'||i.status===filterSt)&&(!q||i.nombre.toLowerCase().includes(q)||(i.responsable||'').toLowerCase().includes(q)));
+  const el=document.getElementById('itemList');
+  if(!f.length){el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>No hay temas que coincidan.</p></div>';return;}
+  el.innerHTML=f.map(i=>`<div class="item-card" data-cat="${i.categoria}">
+    <div class="item-top"><div class="item-name">${i.nombre}</div><span class="badge ${sc(i.status)}">${i.status}</span></div>
+    <div class="item-meta">${i.responsable?`<span class="meta-pill">👤 ${i.responsable}</span>`:''}${i.fecha?`<span class="meta-pill">📅 ${fd(i.fecha)}</span>`:''}<span class="meta-pill"><span class="cat-dot ${i.categoria}"></span>${i.categoria}</span></div>
+    ${i.notas?`<div class="item-notes">${i.notas}</div>`:''}
+    <div class="item-actions"><button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button><button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button></div>
+  </div>`).join('');
+}
+
+function renderCats(){
+  document.getElementById('catsList').innerHTML=items.map(i=>`
+    <div class="cat-assign-row">
+      <div class="cat-assign-name">${i.nombre}</div>
+      <select onchange="updateCat(${i.id},this.value)">
+        <option value="Retail" ${i.categoria==='Retail'?'selected':''}>🔵 Retail</option>
+        <option value="Inventario" ${i.categoria==='Inventario'?'selected':''}>🟠 Inventario</option>
+        <option value="Otros" ${i.categoria==='Otros'?'selected':''}>🟣 Otros</option>
+      </select>
+    </div>`).join('');
+}
+function updateCat(id,cat){const i=items.find(i=>i.id===id);if(i){i.categoria=cat;saveLocal();}showToast('🏷️ Categoría actualizada');}
+
+function renderResumen(){
+  const total=items.length,listo=items.filter(i=>i.status==='Listo').length,proceso=items.filter(i=>i.status==='En Proceso').length,pend=items.filter(i=>i.status==='Pendiente').length;
+  const pct=total?Math.round(listo/total*100):0;
+  document.getElementById('kpiGrid').innerHTML=`
+    <div class="kpi-card k-total"><div class="kpi-num">${total}</div><div class="kpi-label">Total</div></div>
+    <div class="kpi-card k-listo"><div class="kpi-num">${pct}%</div><div class="kpi-label">Completado</div></div>
+    <div class="kpi-card k-listo"><div class="kpi-num">${listo}</div><div class="kpi-label">Listos</div></div>
+    <div class="kpi-card k-proceso"><div class="kpi-num">${proceso}</div><div class="kpi-label">En Proceso</div></div>
+    <div class="kpi-card k-pend"><div class="kpi-num">${pend}</div><div class="kpi-label">Pendientes</div></div>
+    `;
+
+  const cats=['Retail','Inventario','Otros'],emoji={Retail:'🔵',Inventario:'🟠',Otros:'🟣'};
+  document.getElementById('resCats').innerHTML=cats.map(cat=>{
+    const tot=items.filter(i=>i.categoria===cat).length;
+    const ok=items.filter(i=>i.categoria===cat&&i.status==='Listo').length;
+    const ep=items.filter(i=>i.categoria===cat&&i.status==='En Proceso').length;
+    const pe=items.filter(i=>i.categoria===cat&&i.status==='Pendiente').length;
+    const p=tot?Math.round(ok/tot*100):0;
+    return`<div class="prog-row">
+      <div class="prog-row-top"><div class="prog-label">${emoji[cat]} ${cat}</div><div class="prog-nums">${ok}/${tot} listos · ${ep} en proceso · ${pe} pend.</div></div>
+      <div class="prog-wrap"><div class="prog-bar" style="width:${p}%"></div></div>
+      <div style="font-size:11px;color:var(--text-muted);text-align:right;margin-top:3px">${p}% completado</div>
+    </div>`;
+  }).join('');
+
+  const activos=items.filter(i=>i.status==='Pendiente'||i.status==='En Proceso').sort((a,b)=>a.status.localeCompare(b.status));
+  document.getElementById('tbActivos').innerHTML=activos.length
+    ?activos.map(i=>`<tr><td class="td-tema">${i.nombre}</td><td class="td-resp">${i.responsable||'—'}</td><td class="td-fecha">${fd(i.fecha)}</td><td><span class="badge ${sc(i.status)}">${i.status}</span></td><td><span class="tbl-cat ${i.categoria}">${i.categoria}</span></td></tr>`).join('')
+    :'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">¡Sin temas activos! 🎉</td></tr>';
+
+  document.getElementById('tbFull').innerHTML=items.map(i=>`<tr>
+    <td class="td-fecha">${fd(i.fecha)}</td>
+    <td class="td-tema">${i.nombre}</td>
+    <td class="td-resp">${i.responsable||'—'}</td>
+    <td><span class="badge ${sc(i.status)}">${i.status}</span></td>
+    <td><span class="tbl-cat ${i.categoria}">${i.categoria}</span></td>
+    <td class="td-notas">${i.notas||''}</td>
+  </tr>`).join('');
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+load();
+
+// Register Service Worker
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(()=>console.log('SW registered'))
+      .catch(e=>console.log('SW error:',e));
+  });
+}
+</script>
+</body>
+</html>
