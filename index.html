@@ -217,8 +217,13 @@ tr:hover td{background:#f9fbff}
       <span class="filter-chip active-filter" onclick="setFilter('st','all',this)">Todos</span>
       <span class="filter-chip" onclick="setFilter('st','En Proceso',this)">🟡 En Proceso</span>
       <span class="filter-chip" onclick="setFilter('st','Pendiente',this)">🔴 Pendiente</span>
-      
       <span class="filter-chip" onclick="setFilter('st','Listo',this)">🟢 Listo</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="section-label" style="margin-bottom:0">Ordenar por fecha</div>
+      <button id="btnSort" onclick="toggleSort()" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">
+        <span id="sortIcon">↓</span> <span id="sortLabel">Más nueva primero</span>
+      </button>
     </div>
     <div id="itemList"></div>
   </div>
@@ -355,7 +360,7 @@ const SEED=[
 
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyEyXHc5qkDV19NICk8tkfsKol8AkkkvQPq-uRAUS-zYrgiTnFWd-zYygRW3DYDEMVY/exec';
 const KEY='sas_v4';
-let items=[], filterCat='all', filterSt='all', syncing=false;
+let items=[], filterCat='all', filterSt='all', syncing=false, sortOrder='desc';
 
 // ── Sheets API ───────────────────────────────────────────────────────────────
 async function sheetsGet(){
@@ -500,9 +505,21 @@ function setFilter(type,val,el){
 function sc(s){if(s==='Listo')return'listo';if(s==='En Proceso')return'en-proceso';if(s==='Pendiente')return'pendiente';return'no-iniciado';}
 function fd(d){if(!d)return'';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
 
+function toggleSort(){
+  sortOrder=sortOrder==='desc'?'asc':'desc';
+  document.getElementById('sortIcon').textContent=sortOrder==='desc'?'↓':'↑';
+  document.getElementById('sortLabel').textContent=sortOrder==='desc'?'Más nueva primero':'Más vieja primero';
+  renderList();
+}
+
 function renderList(){
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
   const f=items.filter(i=>(filterCat==='all'||i.categoria===filterCat)&&(filterSt==='all'||i.status===filterSt)&&(!q||i.nombre.toLowerCase().includes(q)||(i.responsable||'').toLowerCase().includes(q)));
+  f.sort((a,b)=>{
+    const da=a.fecha||'';const db=b.fecha||'';
+    if(!da&&!db)return 0;if(!da)return 1;if(!db)return -1;
+    return sortOrder==='desc'?db.localeCompare(da):da.localeCompare(db);
+  });
   const el=document.getElementById('itemList');
   if(!f.length){el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>No hay temas que coincidan.</p></div>';return;}
   el.innerHTML=f.map(i=>`<div class="item-card" data-cat="${i.categoria}">
