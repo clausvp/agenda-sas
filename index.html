@@ -17,6 +17,7 @@
 <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
 
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async></script>
 <style>
 :root{--bg:#f0f4fa;--surface:#fff;--border:#d0d8ec;--accent:#2e6be6;--accent2:#6b4fdc;--accent3:#0faa7e;--text:#1a2140;--text-muted:#6270a0;--retail:#2e6be6;--inventario:#e07a20;--otros:#7c5cdc;--no-iniciado:#8a96b8;--en-proceso:#c49a00;--listo:#0faa7e;--pendiente:#d05a9a}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -213,7 +214,21 @@ tr:hover td{background:#f9fbff}
         </select>
       </div>
       <div class="field"><label>Notas adicionales</label><textarea id="notas" placeholder="Contexto, aclaraciones, links…"></textarea></div>
-      <div class="field"><label>Adjunto (link opcional)</label><input type="text" id="adjunto" placeholder="https://drive.google.com/... o cualquier link"/></div>
+      <div class="field">
+        <label>Adjunto (opcional)</label>
+        <div id="adjuntoWrap">
+          <input type="hidden" id="adjunto" value=""/>
+          <div id="adjuntoStatus" style="display:none;font-size:12px;color:var(--listo);margin-bottom:6px;display:flex;align-items:center;gap:6px"></div>
+          <input type="file" id="adjuntoFile" style="display:none" onchange="handleFileSelected()"/>
+          <button type="button" id="btnAdjunto" onclick="iniciarSubidaArchivo()" style="width:100%;padding:11px;border:1px dashed var(--border);border-radius:10px;background:#f7f9fd;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .2s;text-align:center">
+            📎 Seleccionar archivo para subir a Drive
+          </button>
+          <div id="adjuntoNombre" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted);padding:6px 10px;background:#f0f4fa;border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+            <span id="adjuntoNombreTxt"></span>
+            <button type="button" onclick="quitarAdjunto()" style="border:none;background:none;color:#e05c5c;cursor:pointer;font-size:14px">✕</button>
+          </div>
+        </div>
+      </div>
       <input type="hidden" id="editId" value=""/>
       <div id="auditInfo" style="display:none;font-size:11px;color:var(--text-muted);margin-bottom:12px;padding:8px 12px;background:#f7f9fd;border-radius:8px;border:1px solid var(--border)"></div>
       <button class="btn-submit" id="btnSubmit" onclick="submitForm()">Agregar a la Agenda</button>
@@ -666,7 +681,80 @@ function renderResumen(){
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
+// ─── GOOGLE DRIVE UPLOAD ─────────────────────────────────────────────────────
+const CLIENT_ID='907862472084-42esqgfdids5vpnmaq3e7saa5utiqme0.apps.googleusercontent.com';
+const FOLDER_ID='1rP6g4WsgLaRb7gNLcw6_4rRGmFN9fjMd';
+const SCOPES='https://www.googleapis.com/auth/drive.file';
+let tokenClient=null, accessToken=null, pendingFile=null;
+
+function initGoogleAuth(){
+  if(typeof google==='undefined'){setTimeout(initGoogleAuth,500);return;}
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,scope:SCOPES,
+    callback:(resp)=>{
+      if(resp.error)return;
+      accessToken=resp.access_token;
+      if(pendingFile){subirArchivoDrive(pendingFile);pendingFile=null;}
+    }
+  });
+}
+
+function iniciarSubidaArchivo(){document.getElementById('adjuntoFile').click();}
+
+function handleFileSelected(){
+  const file=document.getElementById('adjuntoFile').files[0];
+  if(!file)return;
+  pendingFile=file;
+  document.getElementById('adjuntoNombreTxt').textContent=file.name;
+  document.getElementById('adjuntoNombre').style.display='flex';
+  document.getElementById('btnAdjunto').textContent='📎 '+file.name;
+  if(accessToken){subirArchivoDrive(file);pendingFile=null;return;}
+  if(!tokenClient)initGoogleAuth();
+  setTimeout(()=>{if(tokenClient)tokenClient.requestAccessToken({prompt:''});},600);
+}
+
+async function subirArchivoDrive(file){
+  const btn=document.getElementById('btnAdjunto');
+  btn.textContent='⬆️ Subiendo…';btn.disabled=true;
+  try{
+    const meta={name:file.name,parents:[FOLDER_ID]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
+    form.append('file',file);
+    const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
+      method:'POST',headers:{Authorization:'Bearer '+accessToken},body:form
+    });
+    const data=await res.json();
+    if(data.id){
+      await fetch(`https://www.googleapis.com/drive/v3/files/${data.id}/permissions`,{
+        method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({role:'reader',type:'anyone'})
+      });
+      document.getElementById('adjunto').value=data.webViewLink;
+      btn.textContent='✅ '+file.name+' subido';
+      btn.style.borderColor='var(--listo)';btn.style.color='var(--listo)';
+      showToast('✅ Archivo subido a Drive');
+    }else throw new Error();
+  }catch{
+    btn.textContent='⚠️ Error — intentá de nuevo';
+    btn.style.borderColor='#e05c5c';btn.style.color='#e05c5c';
+    showToast('⚠️ No se pudo subir el archivo');
+  }
+  btn.disabled=false;
+}
+
+function quitarAdjunto(){
+  document.getElementById('adjunto').value='';
+  document.getElementById('adjuntoFile').value='';
+  document.getElementById('adjuntoNombre').style.display='none';
+  const btn=document.getElementById('btnAdjunto');
+  btn.textContent='📎 Seleccionar archivo para subir a Drive';
+  btn.style.borderColor='';btn.style.color='';
+  pendingFile=null;
+}
+
 load();
+window.addEventListener('load',()=>{initGoogleAuth();});
 
 // Register Service Worker
 if('serviceWorker' in navigator){
