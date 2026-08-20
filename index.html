@@ -233,6 +233,7 @@ tr:hover td{background:#f9fbff}
       <div id="auditInfo" style="display:none;font-size:11px;color:var(--text-muted);margin-bottom:12px;padding:8px 12px;background:#f7f9fd;border-radius:8px;border:1px solid var(--border)"></div>
       <button class="btn-submit" id="btnSubmit" onclick="submitForm()">Agregar a la Agenda</button>
       <button class="btn-cancel" id="btnCancel" onclick="cancelEdit()" style="display:none">Cancelar edición</button>
+      <button type="button" id="btnLimpiar" onclick="resetForm()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;transition:all .2s">🧹 Limpiar formulario</button>
     </div>
   </div>
 
@@ -541,6 +542,7 @@ function resetForm(){
   document.getElementById('fecha').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
   document.getElementById('auditInfo').style.display='none';document.getElementById('auditInfo').innerHTML='';
   document.getElementById('formTitle').textContent='Cargar nuevo tema';document.getElementById('btnSubmit').textContent='Agregar a la Agenda';document.getElementById('btnCancel').style.display='none';
+  document.getElementById('btnLimpiar').style.display='block';
 }
 function cancelEdit(){resetForm();}
 function editItem(id){
@@ -560,6 +562,7 @@ function editItem(id){
   document.getElementById('formTitle').textContent='Editar tema';
   document.getElementById('btnSubmit').textContent='Guardar cambios';
   document.getElementById('btnCancel').style.display='block';
+  document.getElementById('btnLimpiar').style.display='none';
   switchTab('form');window.scrollTo({top:0,behavior:'smooth'});
 }
 async function deleteItem(id){
