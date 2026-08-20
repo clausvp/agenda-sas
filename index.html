@@ -177,7 +177,25 @@ tr:hover td{background:#f9fbff}
     <div class="form-card">
       <div class="form-title" id="formTitle">Cargar nuevo tema</div>
       <div class="field"><label>Nombre del tema *</label><input type="text" id="nombre" placeholder="Ej: Revisión de stock Q2"/></div>
-      <div class="field"><label>Responsable / Presentador *</label><input type="text" id="responsable" placeholder="Nombre completo"/></div>
+      <div class="field"><label>Responsable / Presentador *</label>
+        <select id="responsable">
+          <option value="">— Seleccioná —</option>
+          <option>Claudio Salerno</option>
+          <option>Nicolás Calzona</option>
+          <option>Yamila Caminos</option>
+          <option>Daniela Ontiveros</option>
+          <option>Javier Ponce</option>
+          <option>Dante Romero</option>
+          <option>Elayne Romero</option>
+          <option>Enzo Fiabane</option>
+          <option>Jaly Difini</option>
+          <option>Trelluli Cofré</option>
+          <option>Inés Tapullima</option>
+          <option>David Bernal</option>
+          <option>Maru Lanz</option>
+          <option>Otro / Externo</option>
+        </select>
+      </div>
       <div class="field"><label>Fecha de reunión</label><input type="date" id="fecha"/></div>
       <div class="field"><label>Categoría</label>
         <select id="categoria">
@@ -189,14 +207,15 @@ tr:hover td{background:#f9fbff}
       </div>
       <div class="field"><label>Status</label>
         <select id="status">
-          
           <option value="En Proceso">En Proceso</option>
           <option value="Pendiente">Pendiente</option>
           <option value="Listo">Listo</option>
         </select>
       </div>
       <div class="field"><label>Notas adicionales</label><textarea id="notas" placeholder="Contexto, aclaraciones, links…"></textarea></div>
+      <div class="field"><label>Adjunto (link opcional)</label><input type="text" id="adjunto" placeholder="https://drive.google.com/... o cualquier link"/></div>
       <input type="hidden" id="editId" value=""/>
+      <div id="auditInfo" style="display:none;font-size:11px;color:var(--text-muted);margin-bottom:12px;padding:8px 12px;background:#f7f9fd;border-radius:8px;border:1px solid var(--border)"></div>
       <button class="btn-submit" id="btnSubmit" onclick="submitForm()">Agregar a la Agenda</button>
       <button class="btn-cancel" id="btnCancel" onclick="cancelEdit()" style="display:none">Cancelar edición</button>
     </div>
@@ -219,11 +238,36 @@ tr:hover td{background:#f9fbff}
       <span class="filter-chip" onclick="setFilter('st','Pendiente',this)">🔴 Pendiente</span>
       <span class="filter-chip" onclick="setFilter('st','Listo',this)">🟢 Listo</span>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div class="section-label" style="margin-bottom:0">Ordenar por fecha</div>
-      <button id="btnSort" onclick="toggleSort()" style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">
-        <span id="sortIcon">↓</span> <span id="sortLabel">Más nueva primero</span>
-      </button>
+    <div class="section-label">Responsable</div>
+    <div style="margin-bottom:14px">
+      <select id="filterResp" onchange="setFilterResp(this.value)" style="width:100%;background:#f7f9fd;border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27%3E%3Cpath fill=%27%236270a0%27 d=%27M6 8L1 3h10z%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;cursor:pointer">
+        <option value="all">Todos</option>
+        <option>Claudio Salerno</option>
+        <option>Nicolás Calzona</option>
+        <option>Yamila Caminos</option>
+        <option>Daniela Ontiveros</option>
+        <option>Javier Ponce</option>
+        <option>Dante Romero</option>
+        <option>Elayne Romero</option>
+        <option>Enzo Fiabane</option>
+        <option>Jaly Difini</option>
+        <option>Trelluli Cofré</option>
+        <option>Inés Tapullima</option>
+        <option>David Bernal</option>
+        <option>Maru Lanz</option>
+        <option>Otro / Externo</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px">
+      <div class="section-label" style="margin-bottom:0;white-space:nowrap">Ordenar</div>
+      <div style="display:flex;gap:6px">
+        <button id="btnSortCreado" onclick="toggleSort('creado')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s">
+          <span id="sortIconCreado">↓</span> Creación
+        </button>
+        <button id="btnSortModif" onclick="toggleSort('modif')" style="display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s">
+          <span id="sortIconModif">↓</span> Modif.
+        </button>
+      </div>
     </div>
     <div id="itemList"></div>
   </div>
@@ -360,7 +404,7 @@ const SEED=[
 
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyEyXHc5qkDV19NICk8tkfsKol8AkkkvQPq-uRAUS-zYrgiTnFWd-zYygRW3DYDEMVY/exec';
 const KEY='sas_v4';
-let items=[], filterCat='all', filterSt='all', syncing=false, sortOrder='desc';
+let items=[], filterCat='all', filterSt='all', filterResp='all', syncing=false, sortField='creado', sortOrder='desc';
 
 // ── Sheets API ───────────────────────────────────────────────────────────────
 async function sheetsGet(){
@@ -465,10 +509,10 @@ async function submitForm(){
   let item;
   if(eid){
     const idx=items.findIndex(i=>i.id==eid);
-    if(idx>=0){item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim()};items[idx]=item;}
+    if(idx>=0){item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),updatedAt:new Date().toISOString()};items[idx]=item;}
     showToast('✏️ Guardando…');
   }else{
-    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),creado:new Date().toISOString()};
+    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),creado:new Date().toISOString()};
     items.unshift(item);
     showToast('☁️ Guardando…');
   }
@@ -477,15 +521,30 @@ async function submitForm(){
   catch{showToast('⚠️ Guardado solo local (sin red)');}
 }
 function resetForm(){
-  ['nombre','responsable','notas'].forEach(id=>document.getElementById(id).value='');
+  ['nombre','notas','adjunto'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('responsable').value='';
   document.getElementById('fecha').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
+  document.getElementById('auditInfo').style.display='none';document.getElementById('auditInfo').innerHTML='';
   document.getElementById('formTitle').textContent='Cargar nuevo tema';document.getElementById('btnSubmit').textContent='Agregar a la Agenda';document.getElementById('btnCancel').style.display='none';
 }
 function cancelEdit(){resetForm();}
 function editItem(id){
   const item=items.find(i=>i.id===id);if(!item)return;
-  document.getElementById('nombre').value=item.nombre;document.getElementById('responsable').value=item.responsable||'';document.getElementById('fecha').value=item.fecha||'';document.getElementById('categoria').value=item.categoria||'';document.getElementById('status').value=item.status||'Pendiente';document.getElementById('notas').value=item.notas||'';document.getElementById('editId').value=id;
-  document.getElementById('formTitle').textContent='Editar tema';document.getElementById('btnSubmit').textContent='Guardar cambios';document.getElementById('btnCancel').style.display='block';
+  document.getElementById('nombre').value=item.nombre;
+  document.getElementById('responsable').value=item.responsable||'';
+  document.getElementById('fecha').value=item.fecha||'';
+  document.getElementById('categoria').value=item.categoria||'';
+  document.getElementById('status').value=item.status||'Pendiente';
+  document.getElementById('notas').value=item.notas||'';
+  document.getElementById('adjunto').value=item.adjunto||'';
+  document.getElementById('editId').value=id;
+  const creado=item.creado?`🕐 Creado: ${fdISO(item.creado)}`:'';
+  const modificado=item.updatedAt?`✏️ Modificado: ${fdISO(item.updatedAt)}`:'';
+  document.getElementById('auditInfo').innerHTML=[creado,modificado].filter(Boolean).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+  document.getElementById('auditInfo').style.display=creado||modificado?'block':'none';
+  document.getElementById('formTitle').textContent='Editar tema';
+  document.getElementById('btnSubmit').textContent='Guardar cambios';
+  document.getElementById('btnCancel').style.display='block';
   switchTab('form');window.scrollTo({top:0,behavior:'smooth'});
 }
 async function deleteItem(id){
@@ -501,22 +560,39 @@ function setFilter(type,val,el){
   else{filterSt=val;document.querySelectorAll('.filter-row2 .filter-chip').forEach(c=>c.classList.remove('active-filter'));}
   el.classList.add('active-filter');renderList();
 }
+function setFilterResp(val){filterResp=val;renderList();}
 
 function sc(s){if(s==='Listo')return'listo';if(s==='En Proceso')return'en-proceso';if(s==='Pendiente')return'pendiente';return'no-iniciado';}
 function fd(d){if(!d)return'';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
+function fdISO(iso){if(!iso)return'';const d=new Date(iso);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
 
-function toggleSort(){
-  sortOrder=sortOrder==='desc'?'asc':'desc';
-  document.getElementById('sortIcon').textContent=sortOrder==='desc'?'↓':'↑';
-  document.getElementById('sortLabel').textContent=sortOrder==='desc'?'Más nueva primero':'Más vieja primero';
+function toggleSort(field){
+  if(sortField===field){
+    sortOrder=sortOrder==='desc'?'asc':'desc';
+  } else {
+    sortField=field;sortOrder='desc';
+  }
+  // Update button styles
+  ['creado','modif'].forEach(f=>{
+    const btn=document.getElementById('btnSort'+f.charAt(0).toUpperCase()+f.slice(1));
+    const icon=document.getElementById('sortIcon'+f.charAt(0).toUpperCase()+f.slice(1));
+    if(f===sortField){
+      btn.style.borderColor='var(--accent)';btn.style.color='var(--accent)';
+      icon.textContent=sortOrder==='desc'?'↓':'↑';
+    } else {
+      btn.style.borderColor='var(--border)';btn.style.color='var(--text-muted)';
+      icon.textContent='↓';
+    }
+  });
   renderList();
 }
 
 function renderList(){
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
-  const f=items.filter(i=>(filterCat==='all'||i.categoria===filterCat)&&(filterSt==='all'||i.status===filterSt)&&(!q||i.nombre.toLowerCase().includes(q)||(i.responsable||'').toLowerCase().includes(q)));
+  const f=items.filter(i=>(filterCat==='all'||i.categoria===filterCat)&&(filterSt==='all'||i.status===filterSt)&&(filterResp==='all'||i.responsable===filterResp)&&(!q||i.nombre.toLowerCase().includes(q)||(i.responsable||'').toLowerCase().includes(q)));
   f.sort((a,b)=>{
-    const da=a.fecha||'';const db=b.fecha||'';
+    const da=sortField==='creado'?(a.creado||''):(a.updatedAt||a.creado||'');
+    const db=sortField==='creado'?(b.creado||''):(b.updatedAt||b.creado||'');
     if(!da&&!db)return 0;if(!da)return 1;if(!db)return -1;
     return sortOrder==='desc'?db.localeCompare(da):da.localeCompare(db);
   });
@@ -525,8 +601,13 @@ function renderList(){
   el.innerHTML=f.map(i=>`<div class="item-card" data-cat="${i.categoria}">
     <div class="item-top"><div class="item-name">${i.nombre}</div><span class="badge ${sc(i.status)}">${i.status}</span></div>
     <div class="item-meta">${i.responsable?`<span class="meta-pill">👤 ${i.responsable}</span>`:''}${i.fecha?`<span class="meta-pill">📅 ${fd(i.fecha)}</span>`:''}<span class="meta-pill"><span class="cat-dot ${i.categoria}"></span>${i.categoria}</span></div>
+    <div class="item-meta" style="margin-top:5px">${i.creado?`<span class="meta-pill" style="font-size:11px">🕐 Creado: ${fdISO(i.creado)}</span>`:''}${i.updatedAt?`<span class="meta-pill" style="font-size:11px">✏️ Modif.: ${fdISO(i.updatedAt)}</span>`:''}</div>
     ${i.notas?`<div class="item-notes">${i.notas}</div>`:''}
-    <div class="item-actions"><button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button><button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button></div>
+    <div class="item-actions">
+      <button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button>
+      ${i.adjunto?`<a href="${i.adjunto}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .2s">📎 Adjunto</a>`:''}
+      <button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button>
+    </div>
   </div>`).join('');
 }
 
