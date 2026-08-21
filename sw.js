@@ -1,4 +1,4 @@
-const CACHE = 'agenda-sas-v4';
+const CACHE = 'agenda-sas-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,12 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
+});
+
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', e => {
