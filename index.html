@@ -773,13 +773,33 @@ function quitarAdjunto(){
 load();
 window.addEventListener('load',()=>{initGoogleAuth();});
 
-// Register Service Worker
+// Register Service Worker con auto-actualización
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js')
-      .then(()=>console.log('SW registered'))
-      .catch(e=>console.log('SW error:',e));
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      // Chequear si hay una versión nueva cada vez que se abre la app
+      reg.update();
+      // Si ya hay un worker esperando, activarlo ya
+      if(reg.waiting){reg.waiting.postMessage('SKIP_WAITING');}
+      reg.addEventListener('updatefound',()=>{
+        const newWorker=reg.installing;
+        newWorker.addEventListener('statechange',()=>{
+          if(newWorker.state==='installed'&&navigator.serviceWorker.controller){
+            newWorker.postMessage('SKIP_WAITING');
+          }
+        });
+      });
+    }).catch(e=>console.log('SW error:',e));
+    // Cuando el nuevo SW toma control, recargar automáticamente una sola vez
+    let refreshing=false;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(refreshing)return;
+      refreshing=true;
+      window.location.reload();
+    });
   });
+  // Revisar cada 60s si hay actualizaciones (útil si la app queda abierta mucho tiempo)
+  setInterval(()=>{navigator.serviceWorker.getRegistration().then(r=>r&&r.update());},60000);
 }
 </script>
 </body>
