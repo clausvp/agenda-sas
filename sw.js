@@ -1,4 +1,4 @@
-const CACHE = 'agenda-sas-v5';
+const CACHE = 'agenda-sas-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -42,9 +42,9 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   const isDynamic = NO_CACHE_HOSTS.some(h => url.hostname.includes(h));
 
-  // Datos dinámicos: siempre ir a la red, nunca servir desde caché
+  // Datos dinámicos y flujo de autenticación de Google: NUNCA interceptar,
+  // dejar que el navegador los maneje directamente (evita romper el OAuth popup)
   if (isDynamic) {
-    e.respondWith(fetch(e.request).catch(() => new Response(JSON.stringify({error:'offline'}), {headers:{'Content-Type':'application/json'}})));
     return;
   }
 
