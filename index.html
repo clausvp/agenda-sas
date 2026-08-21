@@ -547,6 +547,14 @@ function resetForm(){
   document.getElementById('auditInfo').style.display='none';document.getElementById('auditInfo').innerHTML='';
   document.getElementById('formTitle').textContent='Cargar nuevo tema';document.getElementById('btnSubmit').textContent='Agregar a la Agenda';document.getElementById('btnCancel').style.display='none';
   document.getElementById('btnLimpiar').style.display='block';
+  // Limpiar estado visual del adjunto
+  document.getElementById('adjuntoFile').value='';
+  document.getElementById('adjuntoNombre').style.display='none';
+  document.getElementById('adjuntoNombreTxt').textContent='';
+  const btn=document.getElementById('btnAdjunto');
+  btn.textContent='📎 Seleccionar archivo para subir a Drive';
+  btn.style.borderColor='';btn.style.color='';btn.disabled=false;
+  pendingFile=null;
 }
 function cancelEdit(){resetForm();}
 function editItem(id){
