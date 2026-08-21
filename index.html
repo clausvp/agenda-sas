@@ -596,6 +596,7 @@ function setFilterResp(val){filterResp=val;renderList();}
 function sc(s){if(s==='Listo')return'listo';if(s==='En Proceso')return'en-proceso';if(s==='Pendiente')return'pendiente';return'no-iniciado';}
 function fd(d){if(!d)return'';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d;}
 function fdISO(iso){if(!iso)return'';const d=new Date(iso);return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
+function normUrl(u){if(!u)return'';u=u.trim();return/^https?:\/\//i.test(u)?u:'https://'+u;}
 
 function toggleSort(field){
   if(sortField===field){
@@ -636,8 +637,8 @@ function renderList(){
     ${i.notas?`<div class="item-notes">${i.notas}</div>`:''}
     <div class="item-actions">
       <button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button>
-      ${i.adjunto?`<a href="${i.adjunto}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">📎 Adjunto</a>`:''}
-      ${i.adjuntoLink?`<a href="${i.adjuntoLink}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">🔗 Link</a>`:''}
+      ${i.adjunto?`<a href="${normUrl(i.adjunto)}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">📎 Adjunto</a>`:''}
+      ${i.adjuntoLink?`<a href="${normUrl(i.adjuntoLink)}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">🔗 Link</a>`:''}
       <button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button>
     </div>
   </div>`).join('');
