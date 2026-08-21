@@ -227,6 +227,10 @@ tr:hover td{background:#f9fbff}
             <span id="adjuntoNombreTxt"></span>
             <button type="button" onclick="quitarAdjunto()" style="border:none;background:none;color:#e05c5c;cursor:pointer;font-size:14px">✕</button>
           </div>
+          <div style="margin-top:10px">
+            <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:6px;display:block">O pegá un link externo</label>
+            <input type="text" id="adjuntoLink" placeholder="https://sharepoint.com/... o cualquier link" style="width:100%;background:#f7f9fd;border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none"/>
+          </div>
         </div>
       </div>
       <input type="hidden" id="editId" value=""/>
@@ -525,10 +529,10 @@ async function submitForm(){
   let item;
   if(eid){
     const idx=items.findIndex(i=>i.id==eid);
-    if(idx>=0){item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),updatedAt:new Date().toISOString()};items[idx]=item;}
+    if(idx>=0){item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),updatedAt:new Date().toISOString()};items[idx]=item;}
     showToast('✏️ Guardando…');
   }else{
-    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),creado:new Date().toISOString()};
+    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),creado:new Date().toISOString()};
     items.unshift(item);
     showToast('☁️ Guardando…');
   }
@@ -537,7 +541,7 @@ async function submitForm(){
   catch{showToast('⚠️ Guardado solo local (sin red)');}
 }
 function resetForm(){
-  ['nombre','notas','adjunto'].forEach(id=>document.getElementById(id).value='');
+  ['nombre','notas','adjunto','adjuntoLink'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('responsable').value='';
   document.getElementById('fecha').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
   document.getElementById('auditInfo').style.display='none';document.getElementById('auditInfo').innerHTML='';
@@ -554,6 +558,7 @@ function editItem(id){
   document.getElementById('status').value=item.status||'Pendiente';
   document.getElementById('notas').value=item.notas||'';
   document.getElementById('adjunto').value=item.adjunto||'';
+  document.getElementById('adjuntoLink').value=item.adjuntoLink||'';
   document.getElementById('editId').value=id;
   const creado=item.creado?`🕐 Creado: ${fdISO(item.creado)}`:'';
   const modificado=item.updatedAt?`✏️ Modificado: ${fdISO(item.updatedAt)}`:'';
@@ -623,7 +628,8 @@ function renderList(){
     ${i.notas?`<div class="item-notes">${i.notas}</div>`:''}
     <div class="item-actions">
       <button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button>
-      ${i.adjunto?`<a href="${i.adjunto}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .2s">📎 Adjunto</a>`:''}
+      ${i.adjunto?`<a href="${i.adjunto}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">📎 Adjunto</a>`:''}
+      ${i.adjuntoLink?`<a href="${i.adjuntoLink}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">🔗 Link</a>`:''}
       <button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button>
     </div>
   </div>`).join('');
