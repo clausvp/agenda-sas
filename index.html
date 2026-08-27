@@ -144,16 +144,44 @@ tr:hover td{background:#f9fbff}
 </head>
 <body>
 
+<!-- MODAL SELECCIÓN DE USUARIO -->
+<div id="userModalOverlay" style="position:fixed;inset:0;background:rgba(26,33,64,.5);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border-radius:20px;padding:24px;width:100%;max-width:400px">
+    <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:6px">¿Quién sos?</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5">Elegí tu nombre para identificar tus temas en este dispositivo.</div>
+    <select id="userSelect" style="width:100%;background:#f7f9fd;border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;margin-bottom:14px;-webkit-appearance:none">
+      <option value="">— Seleccioná tu nombre —</option>
+      <option>Claudio Salerno</option>
+      <option>Nicolás Calzona</option>
+      <option>Yamila Caminos</option>
+      <option>Daniela Ontiveros</option>
+      <option>Javier Ponce</option>
+      <option>Dante Romero</option>
+      <option>Elayne Romero</option>
+      <option>Enzo Fiabane</option>
+      <option>Jaly Difini</option>
+      <option>Trelluli Cofré</option>
+      <option>Inés Tapullima</option>
+      <option>David Bernal</option>
+      <option>Maru Lanz</option>
+    </select>
+    <button onclick="confirmarUsuario()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;color:#fff;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer">Confirmar</button>
+  </div>
+</div>
+
 <div class="header">
   <div class="header-top">
     <div class="header-left">
       <div class="logo-dot"></div>
       <h1>Planning & Sales SAS</h1>
     </div>
-    <button class="btn-sync" id="btnSync" onclick="syncDrive()">
-      <span class="sync-icon" id="syncIcon">☁️</span>
-      <span id="syncLabel">Drive</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button onclick="abrirModalUsuario()" id="btnUsuario" style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer">👤 <span id="usuarioLabel">Elegir</span></button>
+      <button class="btn-sync" id="btnSync" onclick="syncDrive()">
+        <span class="sync-icon" id="syncIcon">☁️</span>
+        <span id="syncLabel">Drive</span>
+      </button>
+    </div>
   </div>
   <h2>Agenda de la Reunión</h2>
   <div class="header-stats">
@@ -198,6 +226,7 @@ tr:hover td{background:#f9fbff}
         </select>
       </div>
       <div class="field"><label>Fecha de reunión</label><input type="date" id="fecha"/></div>
+      <div class="field"><label>Deadline (opcional)</label><input type="date" id="deadline"/></div>
       <div class="field"><label>Categoría</label>
         <select id="categoria">
           <option value="">— Seleccioná —</option>
@@ -424,7 +453,32 @@ const SEED=[
 
 const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyEyXHc5qkDV19NICk8tkfsKol8AkkkvQPq-uRAUS-zYrgiTnFWd-zYygRW3DYDEMVY/exec';
 const KEY='sas_v4';
+const USER_KEY='sas_current_user';
+const ADMINS=['Claudio Salerno','Nicolás Calzona','Enzo Fiabane'];
 let items=[], filterCat='all', filterSt='all', filterResp='all', syncing=false, sortField='creado', sortOrder='desc';
+let currentUser=localStorage.getItem(USER_KEY)||'';
+let lastAction=null; // {type:'delete'|'edit', item:{...}, prevItem:{...}}
+
+function abrirModalUsuario(){
+  document.getElementById('userSelect').value=currentUser;
+  document.getElementById('userModalOverlay').style.display='flex';
+}
+function confirmarUsuario(){
+  const val=document.getElementById('userSelect').value;
+  if(!val)return;
+  currentUser=val;
+  localStorage.setItem(USER_KEY,val);
+  document.getElementById('usuarioLabel').textContent=val.split(' ')[0];
+  document.getElementById('userModalOverlay').style.display='none';
+  renderList();
+}
+function puedeBorrar(item){
+  if(ADMINS.includes(currentUser))return true;
+  if(item.creadoPor&&item.creadoPor===currentUser)return true;
+  // Compatibilidad con temas viejos sin creadoPor: si el responsable coincide, dejar borrar
+  if(!item.creadoPor&&item.responsable===currentUser)return true;
+  return false;
+}
 
 // ── Sheets API ───────────────────────────────────────────────────────────────
 async function sheetsGet(){
@@ -529,11 +583,17 @@ async function submitForm(){
   let item;
   if(eid){
     const idx=items.findIndex(i=>i.id==eid);
-    if(idx>=0){item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),updatedAt:new Date().toISOString()};items[idx]=item;}
+    if(idx>=0){
+      const prevItem={...items[idx]};
+      item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),updatedAt:new Date().toISOString()};
+      items[idx]=item;
+      lastAction={type:'edit',item,prevItem};
+    }
     showToast('✏️ Guardando…');
   }else{
-    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),creado:new Date().toISOString()};
+    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),creado:new Date().toISOString(),creadoPor:currentUser||resp};
     items.unshift(item);
+    lastAction=null; // no undo para altas nuevas
     showToast('☁️ Guardando…');
   }
   saveLocal();resetForm();
@@ -543,7 +603,7 @@ async function submitForm(){
 function resetForm(){
   ['nombre','notas','adjunto','adjuntoLink'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('responsable').value='';
-  document.getElementById('fecha').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
+  document.getElementById('fecha').value='';document.getElementById('deadline').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
   document.getElementById('auditInfo').style.display='none';document.getElementById('auditInfo').innerHTML='';
   document.getElementById('formTitle').textContent='Cargar nuevo tema';document.getElementById('btnSubmit').textContent='Agregar a la Agenda';document.getElementById('btnCancel').style.display='none';
   document.getElementById('btnLimpiar').style.display='block';
@@ -562,6 +622,7 @@ function editItem(id){
   document.getElementById('nombre').value=item.nombre;
   document.getElementById('responsable').value=item.responsable||'';
   document.getElementById('fecha').value=item.fecha||'';
+  document.getElementById('deadline').value=item.deadline||'';
   document.getElementById('categoria').value=item.categoria||'';
   document.getElementById('status').value=item.status||'Pendiente';
   document.getElementById('notas').value=item.notas||'';
@@ -579,11 +640,41 @@ function editItem(id){
   switchTab('form');window.scrollTo({top:0,behavior:'smooth'});
 }
 async function deleteItem(id){
+  const item=items.find(i=>i.id===id);
+  if(!item)return;
+  if(!currentUser){showToast('👤 Elegí tu nombre primero (arriba)');abrirModalUsuario();return;}
+  if(!puedeBorrar(item)){showToast('🚫 Solo el admin o quien creó el tema puede borrarlo');return;}
   if(!confirm('¿Eliminar este tema?'))return;
   items=items.filter(i=>i.id!==id);
-  saveLocal();renderList();showToast('🗑️ Eliminando…');
-  try{await sheetsDelete(id);showToast('🗑️ Eliminado');}
+  lastAction={type:'delete',item};
+  saveLocal();renderList();
+  mostrarToastUndo('🗑️ Tema eliminado');
+  try{await sheetsDelete(id);}
   catch{showToast('⚠️ Eliminado local (sin red)');}
+}
+
+async function undoLastAction(){
+  if(!lastAction)return;
+  if(lastAction.type==='delete'){
+    items.unshift(lastAction.item);
+    saveLocal();renderList();
+    try{await sheetsSave(lastAction.item);showToast('↩️ Eliminación deshecha');}
+    catch{showToast('⚠️ Deshecho local (sin red)');}
+  }else if(lastAction.type==='edit'){
+    const idx=items.findIndex(i=>i.id===lastAction.prevItem.id);
+    if(idx>=0)items[idx]=lastAction.prevItem;
+    saveLocal();renderList();
+    try{await sheetsSave(lastAction.prevItem);showToast('↩️ Edición deshecha');}
+    catch{showToast('⚠️ Deshecho local (sin red)');}
+  }
+  lastAction=null;
+}
+
+function mostrarToastUndo(msg){
+  const t=document.getElementById('toast');
+  t.innerHTML=msg+' &nbsp; <button onclick="undoLastAction()" style="background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:14px;padding:4px 10px;font-weight:700;cursor:pointer;font-size:12px">Deshacer</button>';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),6000);
 }
 
 function setFilter(type,val,el){
@@ -630,18 +721,23 @@ function renderList(){
   });
   const el=document.getElementById('itemList');
   if(!f.length){el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>No hay temas que coincidan.</p></div>';return;}
-  el.innerHTML=f.map(i=>`<div class="item-card" data-cat="${i.categoria}">
+  el.innerHTML=f.map(i=>{
+    const hoy=new Date().toISOString().slice(0,10);
+    const vencido=i.deadline&&i.deadline<hoy&&i.status!=='Listo';
+    const deadlineHtml=i.deadline?`<span class="meta-pill" style="${vencido?'color:#e05c5c;font-weight:700':''}">${vencido?'⏰':'🎯'} Deadline: ${fd(i.deadline)}${vencido?' (vencido)':''}</span>`:'';
+    return `<div class="item-card" data-cat="${i.categoria}">
     <div class="item-top"><div class="item-name">${i.nombre}</div><span class="badge ${sc(i.status)}">${i.status}</span></div>
     <div class="item-meta">${i.responsable?`<span class="meta-pill">👤 ${i.responsable}</span>`:''}${i.fecha?`<span class="meta-pill">📅 ${fd(i.fecha)}</span>`:''}<span class="meta-pill"><span class="cat-dot ${i.categoria}"></span>${i.categoria}</span></div>
+    ${deadlineHtml?`<div class="item-meta" style="margin-top:5px">${deadlineHtml}</div>`:''}
     <div class="item-meta" style="margin-top:5px">${i.creado?`<span class="meta-pill" style="font-size:11px">🕐 Creado: ${fdISO(i.creado)}</span>`:''}${i.updatedAt?`<span class="meta-pill" style="font-size:11px">✏️ Modif.: ${fdISO(i.updatedAt)}</span>`:''}</div>
     ${i.notas?`<div class="item-notes">${i.notas}</div>`:''}
     <div class="item-actions">
       <button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button>
       ${i.adjunto?`<a href="${normUrl(i.adjunto)}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">📎 Adjunto</a>`:''}
       ${i.adjuntoLink?`<a href="${normUrl(i.adjuntoLink)}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">🔗 Link</a>`:''}
-      <button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button>
+      ${puedeBorrar(i)?`<button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button>`:''}
     </div>
-  </div>`).join('');
+  </div>`}).join('');
 }
 
 function renderCats(){
@@ -773,6 +869,8 @@ function quitarAdjunto(){
 
 load();
 window.addEventListener('load',()=>{initGoogleAuth();});
+if(currentUser){document.getElementById('usuarioLabel').textContent=currentUser.split(' ')[0];}
+else{setTimeout(abrirModalUsuario,800);}
 
 // Register Service Worker con auto-actualización
 if('serviceWorker' in navigator){
