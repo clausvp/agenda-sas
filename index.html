@@ -176,6 +176,7 @@ tr:hover td{background:#f9fbff}
       <h1>Planning & Sales SAS</h1>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
+      <button onclick="undoLastAction()" id="btnUndo" style="display:none;align-items:center;gap:4px;padding:6px 10px;border-radius:20px;border:1px solid var(--accent);background:rgba(46,107,230,.08);color:var(--accent);font-size:11px;font-weight:700;cursor:pointer">↩️ Deshacer</button>
       <button onclick="abrirModalUsuario()" id="btnUsuario" style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer">👤 <span id="usuarioLabel">Elegir</span></button>
       <button class="btn-sync" id="btnSync" onclick="syncDrive()">
         <span class="sync-icon" id="syncIcon">☁️</span>
@@ -459,6 +460,12 @@ let items=[], filterCat='all', filterSt='all', filterResp='all', syncing=false, 
 let currentUser=localStorage.getItem(USER_KEY)||'';
 let lastAction=null; // {type:'delete'|'edit', item:{...}, prevItem:{...}}
 
+function setLastAction(action){
+  lastAction=action;
+  const btn=document.getElementById('btnUndo');
+  if(btn)btn.style.display=action?'flex':'none';
+}
+
 function abrirModalUsuario(){
   document.getElementById('userSelect').value=currentUser;
   document.getElementById('userModalOverlay').style.display='flex';
@@ -587,13 +594,13 @@ async function submitForm(){
       const prevItem={...items[idx]};
       item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),updatedAt:new Date().toISOString()};
       items[idx]=item;
-      lastAction={type:'edit',item,prevItem};
+      lastAction={type:'edit',item,prevItem};setLastAction(lastAction);
     }
     showToast('✏️ Guardando…');
   }else{
     item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),creado:new Date().toISOString(),creadoPor:currentUser||resp};
     items.unshift(item);
-    lastAction=null; // no undo para altas nuevas
+    // no tocamos lastAction acá: si había algo pendiente de deshacer, sigue disponible
     showToast('☁️ Guardando…');
   }
   saveLocal();resetForm();
@@ -646,7 +653,7 @@ async function deleteItem(id){
   if(!puedeBorrar(item)){showToast('🚫 Solo el admin o quien creó el tema puede borrarlo');return;}
   if(!confirm('¿Eliminar este tema?'))return;
   items=items.filter(i=>i.id!==id);
-  lastAction={type:'delete',item};
+  lastAction={type:'delete',item};setLastAction(lastAction);
   saveLocal();renderList();
   mostrarToastUndo('🗑️ Tema eliminado');
   try{await sheetsDelete(id);}
@@ -667,7 +674,7 @@ async function undoLastAction(){
     try{await sheetsSave(lastAction.prevItem);showToast('↩️ Edición deshecha');}
     catch{showToast('⚠️ Deshecho local (sin red)');}
   }
-  lastAction=null;
+  setLastAction(null);
 }
 
 function mostrarToastUndo(msg){
