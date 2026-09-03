@@ -238,28 +238,27 @@ tr:hover td{background:#f9fbff}
       </div>
       <div class="field"><label>Status</label>
         <select id="status">
+          <option value="Pendiente" selected>Pendiente</option>
           <option value="En Proceso">En Proceso</option>
-          <option value="Pendiente">Pendiente</option>
           <option value="Listo">Listo</option>
         </select>
       </div>
       <div class="field"><label>Notas adicionales</label><textarea id="notas" placeholder="Contexto, aclaraciones, links…"></textarea></div>
       <div class="field">
-        <label>Adjunto (opcional)</label>
+        <label>Adjuntos (opcional, podés agregar varios)</label>
         <div id="adjuntoWrap">
-          <input type="hidden" id="adjunto" value=""/>
-          <div id="adjuntoStatus" style="display:none;font-size:12px;color:var(--listo);margin-bottom:6px;display:flex;align-items:center;gap:6px"></div>
           <input type="file" id="adjuntoFile" style="display:none" onchange="handleFileSelected()"/>
           <button type="button" id="btnAdjunto" onclick="iniciarSubidaArchivo()" style="width:100%;padding:11px;border:1px dashed var(--border);border-radius:10px;background:#f7f9fd;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .2s;text-align:center">
-            📎 Seleccionar archivo para subir a Drive
+            📎 Agregar archivo (subir a Drive)
           </button>
-          <div id="adjuntoNombre" style="display:none;margin-top:6px;font-size:12px;color:var(--text-muted);padding:6px 10px;background:#f0f4fa;border-radius:8px;display:flex;align-items:center;justify-content:space-between">
-            <span id="adjuntoNombreTxt"></span>
-            <button type="button" onclick="quitarAdjunto()" style="border:none;background:none;color:#e05c5c;cursor:pointer;font-size:14px">✕</button>
-          </div>
-          <div style="margin-top:10px">
-            <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:6px;display:block">O pegá un link externo</label>
-            <input type="text" id="adjuntoLink" placeholder="https://sharepoint.com/... o cualquier link" style="width:100%;background:#f7f9fd;border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none"/>
+          <div id="adjuntosLista" style="margin-top:8px"></div>
+          <div style="margin-top:12px">
+            <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:6px;display:block">Links externos</label>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="linkInput" placeholder="https://sharepoint.com/... o cualquier link" style="flex:1;background:#f7f9fd;border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none"/>
+              <button type="button" onclick="agregarLink()" style="padding:0 16px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;font-size:14px">+</button>
+            </div>
+            <div id="linksLista" style="margin-top:8px"></div>
           </div>
         </div>
       </div>
@@ -592,13 +591,13 @@ async function submitForm(){
     const idx=items.findIndex(i=>i.id==eid);
     if(idx>=0){
       const prevItem={...items[idx]};
-      item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),updatedAt:new Date().toISOString()};
+      item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:JSON.stringify(formAdjuntos),adjuntoLink:JSON.stringify(formLinks),updatedAt:new Date().toISOString()};
       items[idx]=item;
       lastAction={type:'edit',item,prevItem};setLastAction(lastAction);
     }
     showToast('✏️ Guardando…');
   }else{
-    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:document.getElementById('adjunto').value.trim(),adjuntoLink:document.getElementById('adjuntoLink').value.trim(),creado:new Date().toISOString(),creadoPor:currentUser||resp};
+    item={id:Date.now(),nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:JSON.stringify(formAdjuntos),adjuntoLink:JSON.stringify(formLinks),creado:new Date().toISOString(),creadoPor:currentUser||resp};
     items.unshift(item);
     // no tocamos lastAction acá: si había algo pendiente de deshacer, sigue disponible
     showToast('☁️ Guardando…');
@@ -608,20 +607,17 @@ async function submitForm(){
   catch{showToast('⚠️ Guardado solo local (sin red)');}
 }
 function resetForm(){
-  ['nombre','notas','adjunto','adjuntoLink'].forEach(id=>document.getElementById(id).value='');
+  ['nombre','notas'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('responsable').value='';
   document.getElementById('fecha').value='';document.getElementById('deadline').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
   document.getElementById('auditInfo').style.display='none';document.getElementById('auditInfo').innerHTML='';
   document.getElementById('formTitle').textContent='Cargar nuevo tema';document.getElementById('btnSubmit').textContent='Agregar a la Agenda';document.getElementById('btnCancel').style.display='none';
   document.getElementById('btnLimpiar').style.display='block';
-  // Limpiar estado visual del adjunto
-  document.getElementById('adjuntoFile').value='';
-  document.getElementById('adjuntoNombre').style.display='none';
-  document.getElementById('adjuntoNombreTxt').textContent='';
+  // Limpiar estado visual de adjuntos y links
   const btn=document.getElementById('btnAdjunto');
-  btn.textContent='📎 Seleccionar archivo para subir a Drive';
+  btn.textContent='📎 Agregar archivo (subir a Drive)';
   btn.style.borderColor='';btn.style.color='';btn.disabled=false;
-  pendingFile=null;
+  limpiarAdjuntosForm();
 }
 function cancelEdit(){resetForm();}
 function editItem(id){
@@ -633,8 +629,9 @@ function editItem(id){
   document.getElementById('categoria').value=item.categoria||'';
   document.getElementById('status').value=item.status||'Pendiente';
   document.getElementById('notas').value=item.notas||'';
-  document.getElementById('adjunto').value=item.adjunto||'';
-  document.getElementById('adjuntoLink').value=item.adjuntoLink||'';
+  formAdjuntos=parseAdjuntos(item.adjunto);
+  formLinks=parseLinks(item.adjuntoLink);
+  renderAdjuntosLista();renderLinksLista();
   document.getElementById('editId').value=id;
   const creado=item.creado?`🕐 Creado: ${fdISO(item.creado)}`:'';
   const modificado=item.updatedAt?`✏️ Modificado: ${fdISO(item.updatedAt)}`:'';
@@ -732,16 +729,19 @@ function renderList(){
     const hoy=new Date().toISOString().slice(0,10);
     const vencido=i.deadline&&i.deadline<hoy&&i.status!=='Listo';
     const deadlineHtml=i.deadline?`<span class="meta-pill" style="${vencido?'color:#e05c5c;font-weight:700':''}">${vencido?'⏰':'🎯'} Deadline: ${fd(i.deadline)}${vencido?' (vencido)':''}</span>`:'';
+    const adjuntosArr=parseAdjuntos(i.adjunto);
+    const linksArr=parseLinks(i.adjuntoLink);
+    const adjBtns=adjuntosArr.map(a=>`<a href="${normUrl(a.url)}" target="_blank" style="flex:1;min-width:70px;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a.name}">📎 ${a.name.length>14?a.name.slice(0,12)+'…':a.name}</a>`).join('');
+    const linkBtns=linksArr.map((l,idx)=>`<a href="${normUrl(l)}" target="_blank" style="flex:1;min-width:60px;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">🔗 Link${linksArr.length>1?' '+(idx+1):''}</a>`).join('');
     return `<div class="item-card" data-cat="${i.categoria}">
     <div class="item-top"><div class="item-name">${i.nombre}</div><span class="badge ${sc(i.status)}">${i.status}</span></div>
     <div class="item-meta">${i.responsable?`<span class="meta-pill">👤 ${i.responsable}</span>`:''}${i.fecha?`<span class="meta-pill">📅 ${fd(i.fecha)}</span>`:''}<span class="meta-pill"><span class="cat-dot ${i.categoria}"></span>${i.categoria}</span></div>
     ${deadlineHtml?`<div class="item-meta" style="margin-top:5px">${deadlineHtml}</div>`:''}
     <div class="item-meta" style="margin-top:5px">${i.creado?`<span class="meta-pill" style="font-size:11px">🕐 Creado: ${fdISO(i.creado)}</span>`:''}${i.updatedAt?`<span class="meta-pill" style="font-size:11px">✏️ Modif.: ${fdISO(i.updatedAt)}</span>`:''}</div>
     ${i.notas?`<div class="item-notes">${i.notas}</div>`:''}
+    ${(adjBtns||linkBtns)?`<div class="item-actions" style="flex-wrap:wrap">${adjBtns}${linkBtns}</div>`:''}
     <div class="item-actions">
       <button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button>
-      ${i.adjunto?`<a href="${normUrl(i.adjunto)}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">📎 Adjunto</a>`:''}
-      ${i.adjuntoLink?`<a href="${normUrl(i.adjuntoLink)}" target="_blank" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px">🔗 Link</a>`:''}
       ${puedeBorrar(i)?`<button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button>`:''}
     </div>
   </div>`}).join('');
@@ -802,11 +802,24 @@ function renderResumen(){
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
-// ─── GOOGLE DRIVE UPLOAD ─────────────────────────────────────────────────────
+// ─── GOOGLE DRIVE UPLOAD (múltiples adjuntos y links) ────────────────────────
 const CLIENT_ID='206183268492-j67hlmjs9ifnvrd45dm4q7ca0d2ljcf9.apps.googleusercontent.com';
 const FOLDER_ID='1rP6g4WsgLaRb7gNLcw6_4rRGmFN9fjMd';
 const SCOPES='https://www.googleapis.com/auth/drive.file';
 let tokenClient=null, accessToken=null, pendingFile=null;
+let formAdjuntos=[]; // [{name,url}]
+let formLinks=[];    // [url,...]
+
+function parseAdjuntos(raw){
+  if(!raw)return[];
+  try{const a=JSON.parse(raw);if(Array.isArray(a))return a;}catch{}
+  return[{name:'Adjunto',url:raw}];
+}
+function parseLinks(raw){
+  if(!raw)return[];
+  try{const a=JSON.parse(raw);if(Array.isArray(a))return a;}catch{}
+  return[raw];
+}
 
 function initGoogleAuth(){
   if(typeof google==='undefined'){setTimeout(initGoogleAuth,500);return;}
@@ -824,11 +837,9 @@ function iniciarSubidaArchivo(){document.getElementById('adjuntoFile').click();}
 
 function handleFileSelected(){
   const file=document.getElementById('adjuntoFile').files[0];
+  document.getElementById('adjuntoFile').value='';
   if(!file)return;
   pendingFile=file;
-  document.getElementById('adjuntoNombreTxt').textContent=file.name;
-  document.getElementById('adjuntoNombre').style.display='flex';
-  document.getElementById('btnAdjunto').textContent='📎 '+file.name;
   if(accessToken){subirArchivoDrive(file);pendingFile=null;return;}
   if(!tokenClient)initGoogleAuth();
   setTimeout(()=>{if(tokenClient)tokenClient.requestAccessToken({prompt:''});},600);
@@ -836,7 +847,8 @@ function handleFileSelected(){
 
 async function subirArchivoDrive(file){
   const btn=document.getElementById('btnAdjunto');
-  btn.textContent='⬆️ Subiendo…';btn.disabled=true;
+  const original=btn.textContent;
+  btn.textContent='⬆️ Subiendo '+file.name+'…';btn.disabled=true;
   try{
     const meta={name:file.name,parents:[FOLDER_ID]};
     const form=new FormData();
@@ -851,26 +863,50 @@ async function subirArchivoDrive(file){
         method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
         body:JSON.stringify({role:'reader',type:'anyone'})
       });
-      document.getElementById('adjunto').value=data.webViewLink;
-      btn.textContent='✅ '+file.name+' subido';
-      btn.style.borderColor='var(--listo)';btn.style.color='var(--listo)';
-      showToast('✅ Archivo subido a Drive');
+      formAdjuntos.push({name:file.name,url:data.webViewLink});
+      renderAdjuntosLista();
+      showToast('✅ '+file.name+' subido a Drive');
     }else throw new Error();
   }catch{
-    btn.textContent='⚠️ Error — intentá de nuevo';
-    btn.style.borderColor='#e05c5c';btn.style.color='#e05c5c';
-    showToast('⚠️ No se pudo subir el archivo');
+    showToast('⚠️ No se pudo subir '+file.name);
   }
-  btn.disabled=false;
+  btn.textContent=original;btn.disabled=false;
 }
 
-function quitarAdjunto(){
-  document.getElementById('adjunto').value='';
-  document.getElementById('adjuntoFile').value='';
-  document.getElementById('adjuntoNombre').style.display='none';
-  const btn=document.getElementById('btnAdjunto');
-  btn.textContent='📎 Seleccionar archivo para subir a Drive';
-  btn.style.borderColor='';btn.style.color='';
+function renderAdjuntosLista(){
+  const el=document.getElementById('adjuntosLista');
+  if(!el)return;
+  el.innerHTML=formAdjuntos.map((a,idx)=>`
+    <div style="margin-top:6px;font-size:12px;color:var(--text-muted);padding:6px 10px;background:#f0f4fa;border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+      <span>📎 ${a.name}</span>
+      <button type="button" onclick="quitarAdjuntoIdx(${idx})" style="border:none;background:none;color:#e05c5c;cursor:pointer;font-size:14px">✕</button>
+    </div>`).join('');
+}
+function quitarAdjuntoIdx(idx){formAdjuntos.splice(idx,1);renderAdjuntosLista();}
+
+function agregarLink(){
+  const input=document.getElementById('linkInput');
+  const val=input.value.trim();
+  if(!val)return;
+  formLinks.push(val);
+  input.value='';
+  renderLinksLista();
+}
+function renderLinksLista(){
+  const el=document.getElementById('linksLista');
+  if(!el)return;
+  el.innerHTML=formLinks.map((l,idx)=>`
+    <div style="margin-top:6px;font-size:12px;color:var(--text-muted);padding:6px 10px;background:#f0f4fa;border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:85%">🔗 ${l}</span>
+      <button type="button" onclick="quitarLinkIdx(${idx})" style="border:none;background:none;color:#e05c5c;cursor:pointer;font-size:14px">✕</button>
+    </div>`).join('');
+}
+function quitarLinkIdx(idx){formLinks.splice(idx,1);renderLinksLista();}
+
+function limpiarAdjuntosForm(){
+  formAdjuntos=[];formLinks=[];
+  renderAdjuntosLista();renderLinksLista();
+  const li=document.getElementById('linkInput');if(li)li.value='';
   pendingFile=null;
 }
 
