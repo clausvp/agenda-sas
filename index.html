@@ -144,6 +144,16 @@ tr:hover td{background:#f9fbff}
 </head>
 <body>
 
+<!-- MODAL WHATSAPP -->
+<div id="waModalOverlay" style="position:fixed;inset:0;background:rgba(26,33,64,.5);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border-radius:20px;padding:24px;width:100%;max-width:400px">
+    <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:6px">📲 ¿Avisar por WhatsApp?</div>
+    <div id="waModalTema" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5"></div>
+    <div id="waModalBtns"></div>
+    <button onclick="cerrarWaModal()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;margin-top:4px">Ahora no / Listo</button>
+  </div>
+</div>
+
 <!-- MODAL SELECCIÓN DE USUARIO -->
 <div id="userModalOverlay" style="position:fixed;inset:0;background:rgba(26,33,64,.5);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border-radius:20px;padding:24px;width:100%;max-width:400px">
@@ -207,24 +217,10 @@ tr:hover td{background:#f9fbff}
     <div class="form-card">
       <div class="form-title" id="formTitle">Cargar nuevo tema</div>
       <div class="field"><label>Nombre del tema *</label><input type="text" id="nombre" placeholder="Ej: Revisión de stock Q2"/></div>
-      <div class="field"><label>Responsable / Presentador *</label>
-        <select id="responsable">
-          <option value="">— Seleccioná —</option>
-          <option>Claudio Salerno</option>
-          <option>Nicolás Calzona</option>
-          <option>Yamila Caminos</option>
-          <option>Daniela Ontiveros</option>
-          <option>Javier Ponce</option>
-          <option>Dante Romero</option>
-          <option>Elayne Romero</option>
-          <option>Enzo Fiabane</option>
-          <option>Jaly Difini</option>
-          <option>Trelluli Cofré</option>
-          <option>Inés Tapullima</option>
-          <option>David Bernal</option>
-          <option>Maru Lanz</option>
-          <option>Otro / Externo</option>
-        </select>
+      <div class="field"><label>Responsable(s) / Presentador *</label>
+        <input type="hidden" id="responsable"/>
+        <button type="button" id="respBtn" onclick="toggleRespPanel()" style="width:100%;text-align:left;background:#f7f9fd;border:1px solid var(--border);border-radius:10px;padding:11px 36px 11px 14px;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-size:15px;cursor:pointer;position:relative">Elegir responsables<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px">▾</span></button>
+        <div id="respPanel" style="display:none;margin-top:6px;background:var(--surface);border:1px solid var(--border);border-radius:10px;max-height:280px;overflow:auto;padding:4px 0"></div>
       </div>
       <div class="field"><label>Fecha de reunión</label><input type="date" id="fecha"/></div>
       <div class="field"><label>Deadline (opcional)</label><input type="date" id="deadline"/></div>
@@ -451,7 +447,7 @@ const SEED=[
   {t:"Incluir en metas atWork las Encuestas online (tablet)",r:"Claudio/David",f:"2026-05-12",s:"Pendiente",c:"Retail",n:"Alinear a todos en la reunión a que se cargue la meta cumplida 2026"},
 ];
 
-const SCRIPT_URL='https://script.google.com/macros/s/AKfycbyEyXHc5qkDV19NICk8tkfsKol8AkkkvQPq-uRAUS-zYrgiTnFWd-zYygRW3DYDEMVY/exec';
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbxOuU6pBmQhFyUm-cH8e47nUyvc-tZaEe4DjEy3aNzYcqpgdCl6y3SiCoy5_kdUUSxu/exec';
 const KEY='sas_v4';
 const USER_KEY='sas_current_user';
 const ADMINS=['Claudio Salerno','Nicolás Calzona','Enzo Fiabane'];
@@ -482,9 +478,66 @@ function puedeBorrar(item){
   if(ADMINS.includes(currentUser))return true;
   if(item.creadoPor&&item.creadoPor===currentUser)return true;
   // Compatibilidad con temas viejos sin creadoPor: si el responsable coincide, dejar borrar
-  if(!item.creadoPor&&item.responsable===currentUser)return true;
+  if(!item.creadoPor&&splitResp(item.responsable).includes(currentUser))return true;
   return false;
 }
+
+// ── Responsables múltiples ───────────────────────────────────────────────────
+const RESP_LIST=['Claudio Salerno','Nicolás Calzona','Yamila Caminos','Daniela Ontiveros','Javier Ponce','Dante Romero','Elayne Romero','Enzo Fiabane','Jaly Difini','Trelluli Cofré','Inés Tapullima','David Bernal','Maru Lanz','Otro / Externo'];
+function splitResp(s){return String(s||'').split(/[,;]+/).map(x=>x.trim()).filter(Boolean);}
+function initRespPanel(){
+  document.getElementById('respPanel').innerHTML=RESP_LIST.map(n=>`<label style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin:0;font-size:15px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text);cursor:pointer"><input type="checkbox" value="${n}" onchange="onRespCheck()" style="width:20px;height:20px;margin:0;padding:0;accent-color:var(--accent);flex-shrink:0">${n}</label>`).join('');
+}
+function setResp(str){document.getElementById('responsable').value=str||'';syncRespUI();}
+function syncRespUI(){
+  const sel=splitResp(document.getElementById('responsable').value);
+  document.querySelectorAll('#respPanel input[type=checkbox]').forEach(c=>c.checked=sel.includes(c.value));
+  const btn=document.getElementById('respBtn');
+  const arrow='<span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:11px">▾</span>';
+  btn.innerHTML=(sel.length?sel.join(', '):'Elegir responsables')+arrow;
+  btn.style.color=sel.length?'var(--text)':'var(--text-muted)';
+}
+function onRespCheck(){
+  const hid=document.getElementById('responsable');
+  const checked=[...document.querySelectorAll('#respPanel input[type=checkbox]:checked')].map(c=>c.value);
+  const extras=splitResp(hid.value).filter(x=>!RESP_LIST.includes(x)); // conserva valores viejos como "Supervisores"
+  hid.value=[...checked,...extras].join(', ');
+  syncRespUI();
+}
+function toggleRespPanel(){const p=document.getElementById('respPanel');p.style.display=p.style.display==='block'?'none':'block';}
+
+// ── Contactos y WhatsApp ─────────────────────────────────────────────────────
+const CONT_KEY='sas_contactos';
+let contactos={};
+try{contactos=JSON.parse(localStorage.getItem(CONT_KEY)||'{}')||{};}catch(e){contactos={};}
+async function cargarContactos(){
+  try{
+    const r=await fetch(SCRIPT_URL+'?action=getContactos');
+    const j=await r.json();
+    if(j&&j.contactos){contactos=j.contactos;try{localStorage.setItem(CONT_KEY,JSON.stringify(contactos));}catch(e){}renderList();}
+  }catch(e){}
+}
+function waMensaje(item,name){
+  const first=name.split(' ')[0];
+  let m=`Hola ${first} 👋 En la reunión de Planning & Sales SAS te quedó asignado:\n\n*${item.nombre}*`;
+  if(item.deadline)m+=`\n🎯 Deadline: *${fd(item.deadline)}*`;
+  if(item.notas){const n=String(item.notas).trim();if(n)m+=`\n📝 ${n.length>200?n.slice(0,197)+'…':n}`;}
+  return m+'\n\n¡Gracias!';
+}
+function waLink(item,name){
+  const tel=String(contactos[name]||'').replace(/\D/g,'').replace(/^00/,'');
+  return (tel?'https://wa.me/'+tel:'https://wa.me/')+'?text='+encodeURIComponent(waMensaje(item,name));
+}
+function waNombres(item){return splitResp(item.responsable).filter(n=>n!=='Otro / Externo');}
+const WA_STYLE='flex:1;min-width:90px;padding:8px 10px;border:1px solid #25D366;border-radius:8px;background:rgba(37,211,102,.08);color:#128C7E;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;text-align:center';
+function ofrecerWhatsApp(item){
+  const nombres=waNombres(item);
+  if(!nombres.length)return;
+  document.getElementById('waModalTema').textContent=item.nombre;
+  document.getElementById('waModalBtns').innerHTML=nombres.map(n=>`<a href="${waLink(item,n)}" target="_blank" rel="noopener" style="${WA_STYLE};padding:12px;font-size:14px;margin-bottom:8px">📲 Avisar a ${n}${contactos[n]?'':' <span style="font-weight:500;font-size:11px">(elegir contacto)</span>'}</a>`).join('');
+  document.getElementById('waModalOverlay').style.display='flex';
+}
+function cerrarWaModal(){document.getElementById('waModalOverlay').style.display='none';}
 
 // ── Sheets API ───────────────────────────────────────────────────────────────
 async function sheetsGet(){
@@ -529,6 +582,7 @@ async function load(){
     setTimeout(()=>setSyncState('idle','Sheets'),3000);
   }
   updateStats();
+  cargarContactos();
 }
 
 function saveLocal(){localStorage.setItem(KEY,JSON.stringify(items));updateStats();}
@@ -585,12 +639,13 @@ async function submitForm(){
   const resp=document.getElementById('responsable').value.trim();
   const eid=document.getElementById('editId').value;
   if(!nombre){document.getElementById('nombre').focus();return;}
-  if(!resp){document.getElementById('responsable').focus();return;}
-  let item;
+  if(!resp){showToast('👤 Elegí al menos un responsable');document.getElementById('respPanel').style.display='block';return;}
+  let item,notificar=true;
   if(eid){
     const idx=items.findIndex(i=>i.id==eid);
     if(idx>=0){
       const prevItem={...items[idx]};
+      notificar=prevItem.responsable!==resp||(prevItem.deadline||'')!==document.getElementById('deadline').value;
       item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:JSON.stringify(formAdjuntos),adjuntoLink:JSON.stringify(formLinks),updatedAt:new Date().toISOString()};
       items[idx]=item;
       lastAction={type:'edit',item,prevItem};setLastAction(lastAction);
@@ -605,10 +660,11 @@ async function submitForm(){
   saveLocal();resetForm();
   try{await sheetsSave(item);showToast('✅ '+(eid?'Tema actualizado':'Tema agregado'));}
   catch{showToast('⚠️ Guardado solo local (sin red)');}
+  if(notificar&&item.status!=='Listo')ofrecerWhatsApp(item);
 }
 function resetForm(){
   ['nombre','notas'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('responsable').value='';
+  setResp('');
   document.getElementById('fecha').value='';document.getElementById('deadline').value='';document.getElementById('categoria').value='';document.getElementById('status').value='Pendiente';document.getElementById('editId').value='';
   document.getElementById('auditInfo').style.display='none';document.getElementById('auditInfo').innerHTML='';
   document.getElementById('formTitle').textContent='Cargar nuevo tema';document.getElementById('btnSubmit').textContent='Agregar a la Agenda';document.getElementById('btnCancel').style.display='none';
@@ -623,7 +679,7 @@ function cancelEdit(){resetForm();}
 function editItem(id){
   const item=items.find(i=>i.id===id);if(!item)return;
   document.getElementById('nombre').value=item.nombre;
-  document.getElementById('responsable').value=item.responsable||'';
+  setResp(item.responsable);
   document.getElementById('fecha').value=item.fecha||'';
   document.getElementById('deadline').value=item.deadline||'';
   document.getElementById('categoria').value=item.categoria||'';
@@ -716,7 +772,7 @@ function toggleSort(field){
 
 function renderList(){
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
-  const f=items.filter(i=>(filterCat==='all'||i.categoria===filterCat)&&(filterSt==='all'||i.status===filterSt)&&(filterResp==='all'||i.responsable===filterResp)&&(!q||i.nombre.toLowerCase().includes(q)||(i.responsable||'').toLowerCase().includes(q)));
+  const f=items.filter(i=>(filterCat==='all'||i.categoria===filterCat)&&(filterSt==='all'||i.status===filterSt)&&(filterResp==='all'||splitResp(i.responsable).includes(filterResp))&&(!q||i.nombre.toLowerCase().includes(q)||(i.responsable||'').toLowerCase().includes(q)));
   f.sort((a,b)=>{
     const da=sortField==='creado'?(a.creado||''):(a.updatedAt||a.creado||'');
     const db=sortField==='creado'?(b.creado||''):(b.updatedAt||b.creado||'');
@@ -740,6 +796,7 @@ function renderList(){
     <div class="item-meta" style="margin-top:5px">${i.creado?`<span class="meta-pill" style="font-size:11px">🕐 Creado: ${fdISO(i.creado)}</span>`:''}${i.updatedAt?`<span class="meta-pill" style="font-size:11px">✏️ Modif.: ${fdISO(i.updatedAt)}</span>`:''}</div>
     ${i.notas?`<div class="item-notes">${i.notas}</div>`:''}
     ${(adjBtns||linkBtns)?`<div class="item-actions" style="flex-wrap:wrap">${adjBtns}${linkBtns}</div>`:''}
+    ${waNombres(i).length?`<div class="item-actions" style="flex-wrap:wrap">${waNombres(i).map(n=>`<a href="${waLink(i,n)}" target="_blank" rel="noopener" style="${WA_STYLE}">📲 ${n.split(' ')[0]}</a>`).join('')}</div>`:''}
     <div class="item-actions">
       <button class="btn-edit" onclick="editItem(${i.id})">✏️ Editar</button>
       ${puedeBorrar(i)?`<button class="btn-del" onclick="deleteItem(${i.id})">🗑️</button>`:''}
@@ -910,6 +967,7 @@ function limpiarAdjuntosForm(){
   pendingFile=null;
 }
 
+initRespPanel();syncRespUI();
 load();
 window.addEventListener('load',()=>{initGoogleAuth();});
 if(currentUser){document.getElementById('usuarioLabel').textContent=currentUser.split(' ')[0];}
