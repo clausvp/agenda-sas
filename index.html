@@ -149,6 +149,7 @@ tr:hover td{background:#f9fbff}
   <div style="background:var(--surface);border-radius:20px;padding:24px;width:100%;max-width:400px">
     <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:6px">📲 ¿Avisar por WhatsApp?</div>
     <div id="waModalTema" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5"></div>
+    <div id="waModalModo"></div>
     <div id="waModalBtns"></div>
     <button onclick="cerrarWaModal()" style="width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:14px;font-weight:600;cursor:pointer;margin-top:4px">Ahora no / Listo</button>
   </div>
@@ -517,25 +518,40 @@ async function cargarContactos(){
     if(j&&j.contactos){contactos=j.contactos;try{localStorage.setItem(CONT_KEY,JSON.stringify(contactos));}catch(e){}renderList();}
   }catch(e){}
 }
-function waMensaje(item,name){
+function waMensaje(item,name,upd){
   const first=name.split(' ')[0];
-  let m=`Hola ${first} 👋 En la reunión de Planning & Sales SAS te quedó asignado:\n\n*${item.nombre}*`;
+  let m=upd?`Hola ${first} 👋 Actualización sobre tu tarea de la reunión de Planning & Sales SAS:\n\n*${item.nombre}*`:`Hola ${first} 👋 En la reunión de Planning & Sales SAS te quedó asignado:\n\n*${item.nombre}*`;
   if(item.deadline)m+=`\n🎯 Deadline: *${fd(item.deadline)}*`;
   if(item.notas){const n=String(item.notas).trim();if(n)m+=`\n📝 ${n.length>200?n.slice(0,197)+'…':n}`;}
   return m+'\n\n¡Gracias!';
 }
-function waLink(item,name){
+function waLink(item,name,upd){
   const tel=String(contactos[name]||'').replace(/\D/g,'').replace(/^00/,'');
-  return (tel?'https://wa.me/'+tel:'https://wa.me/')+'?text='+encodeURIComponent(waMensaje(item,name));
+  return (tel?'https://wa.me/'+tel:'https://wa.me/')+'?text='+encodeURIComponent(waMensaje(item,name,upd));
 }
 function waNombres(item){return splitResp(item.responsable).filter(n=>n!=='Otro / Externo');}
 const WA_STYLE='flex:1;min-width:90px;padding:8px 10px;border:1px solid #25D366;border-radius:8px;background:rgba(37,211,102,.08);color:#128C7E;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px;text-align:center';
-function ofrecerWhatsApp(item){
-  const nombres=waNombres(item);
-  if(!nombres.length)return;
+let waCtx=null;
+function ofrecerWhatsApp(item,nuevos,deadlineCambio){
+  const todos=waNombres(item);
+  if(!todos.length)return;
+  const esEdicion=Array.isArray(nuevos);
+  const hayElegir=esEdicion&&nuevos.length>0&&nuevos.length<todos.length;
+  waCtx={item,todos,nuevosReales:esEdicion?nuevos:[],nuevos:hayElegir?nuevos:todos,esEdicion,hayElegir,modo:(hayElegir&&!deadlineCambio)?'nuevos':'todos'};
   document.getElementById('waModalTema').textContent=item.nombre;
-  document.getElementById('waModalBtns').innerHTML=nombres.map(n=>`<a href="${waLink(item,n)}" target="_blank" rel="noopener" style="${WA_STYLE};padding:12px;font-size:14px;margin-bottom:8px">📲 Avisar a ${n}${contactos[n]?'':' <span style="font-weight:500;font-size:11px">(elegir contacto)</span>'}</a>`).join('');
+  renderWaModal();
   document.getElementById('waModalOverlay').style.display='flex';
+}
+function setWaModo(m){if(waCtx){waCtx.modo=m;renderWaModal();}}
+function renderWaModal(){
+  const c=waCtx;if(!c)return;
+  const lista=c.modo==='nuevos'?c.nuevos:c.todos;
+  const seg=(m,txt)=>`<button onclick="setWaModo('${m}')" style="flex:1;padding:9px 8px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid ${c.modo===m?'var(--accent)':'var(--border)'};background:${c.modo===m?'rgba(46,107,230,.1)':'transparent'};color:${c.modo===m?'var(--accent)':'var(--text-muted)'}">${txt}</button>`;
+  document.getElementById('waModalModo').innerHTML=c.hayElegir?`<div style="font-size:13px;font-weight:600;margin-bottom:8px">Es una actualización. ¿A quién avisar?</div><div style="display:flex;gap:8px;margin-bottom:14px">${seg('nuevos','Solo a los nuevos ('+c.nuevos.length+')')}${seg('todos','A todos ('+c.todos.length+')')}</div>`:'';
+  document.getElementById('waModalBtns').innerHTML=lista.map(n=>{
+    const upd=c.esEdicion&&!c.nuevosReales.includes(n);
+    return `<a href="${waLink(c.item,n,upd)}" target="_blank" rel="noopener" style="${WA_STYLE};padding:12px;font-size:14px;margin-bottom:8px">📲 Avisar a ${n}${contactos[n]?'':' <span style="font-weight:500;font-size:11px">(elegir contacto)</span>'}</a>`;
+  }).join('');
 }
 function cerrarWaModal(){document.getElementById('waModalOverlay').style.display='none';}
 
@@ -640,12 +656,15 @@ async function submitForm(){
   const eid=document.getElementById('editId').value;
   if(!nombre){document.getElementById('nombre').focus();return;}
   if(!resp){showToast('👤 Elegí al menos un responsable');document.getElementById('respPanel').style.display='block';return;}
-  let item,notificar=true;
+  let item,notificar=true,nuevos=null,deadlineCambio=false;
   if(eid){
     const idx=items.findIndex(i=>i.id==eid);
     if(idx>=0){
       const prevItem={...items[idx]};
-      notificar=prevItem.responsable!==resp||(prevItem.deadline||'')!==document.getElementById('deadline').value;
+      const prevNames=splitResp(prevItem.responsable);
+      deadlineCambio=(prevItem.deadline||'')!==document.getElementById('deadline').value;
+      nuevos=splitResp(resp).filter(n=>n!=='Otro / Externo'&&!prevNames.includes(n));
+      notificar=nuevos.length>0||deadlineCambio;
       item={...items[idx],nombre,responsable:resp,fecha:document.getElementById('fecha').value,deadline:document.getElementById('deadline').value,categoria:document.getElementById('categoria').value||'Otros',status:document.getElementById('status').value,notas:document.getElementById('notas').value.trim(),adjunto:JSON.stringify(formAdjuntos),adjuntoLink:JSON.stringify(formLinks),updatedAt:new Date().toISOString()};
       items[idx]=item;
       lastAction={type:'edit',item,prevItem};setLastAction(lastAction);
@@ -660,7 +679,7 @@ async function submitForm(){
   saveLocal();resetForm();
   try{await sheetsSave(item);showToast('✅ '+(eid?'Tema actualizado':'Tema agregado'));}
   catch{showToast('⚠️ Guardado solo local (sin red)');}
-  if(notificar&&item.status!=='Listo')ofrecerWhatsApp(item);
+  if(notificar&&item.status!=='Listo')ofrecerWhatsApp(item,nuevos,deadlineCambio);
 }
 function resetForm(){
   ['nombre','notas'].forEach(id=>document.getElementById(id).value='');
