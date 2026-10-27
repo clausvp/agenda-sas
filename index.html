@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Agenda Planning & Sales SAS</title>
+<script>
+// Si algo falla al iniciar, mostrarlo en pantalla en vez de dejarla en blanco
+(function(){function show(m){try{var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#b00020;color:#fff;font:12px/1.4 sans-serif;padding:10px 12px;white-space:pre-wrap;word-break:break-word';d.textContent='⚠️ Error: '+m;(document.body||document.documentElement).appendChild(d);}catch(x){}}
+window.addEventListener('error',function(e){show((e.message||'')+' ['+String(e.filename||'').split('/').pop()+':'+(e.lineno||'')+']');});
+window.addEventListener('unhandledrejection',function(e){show('promesa: '+(e.reason&&e.reason.message||e.reason));});})();
+</script>
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
@@ -994,6 +1000,7 @@ else{setTimeout(abrirModalUsuario,800);}
 
 // Register Service Worker con auto-actualización
 if('serviceWorker' in navigator){
+  const teniaControlador=!!navigator.serviceWorker.controller;
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js').then(reg=>{
       // Chequear si hay una versión nueva cada vez que se abre la app
@@ -1012,7 +1019,8 @@ if('serviceWorker' in navigator){
     // Cuando el nuevo SW toma control, recargar automáticamente una sola vez
     let refreshing=false;
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(refreshing)return;
+      // En la primera instalación no recargar (en iOS dejaba la pantalla en blanco); solo al actualizar
+      if(refreshing||!teniaControlador)return;
       refreshing=true;
       window.location.reload();
     });
